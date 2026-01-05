@@ -13,7 +13,7 @@
 ## 阶段 0：项目基础设施搭建
 
 - [x] 0.1 添加基础开发依赖
-- [ ] 0.2 创建模块目录结构
+- [x] 0.2 创建模块目录结构
 - [ ] 0.3 配置日志系统
 - [ ] 0.4 创建错误类型系统
 
@@ -146,6 +146,108 @@ src-tauri/src/
 ├── config/
 └── utils/
 ```
+
+---
+
+## ✅ 阶段 0.2：创建模块目录结构
+
+### 完成日期
+2026-01-05
+
+### 完成内容
+
+#### 创建的目录结构
+```
+src-tauri/src/
+├── commands/           # Tauri 命令 (IPC 接口)
+├── modules/            # 业务逻辑模块
+│   ├── peer/           # 节点管理
+│   ├── message/        # 消息处理
+│   ├── file_transfer/  # 文件传输
+│   ├── crypto/         # 加密模块
+│   └── group/          # 群组管理
+├── network/            # 网络通信
+├── storage/            # 数据持久化 (已存在，补充 mod.rs)
+│   └── entities/       # 实体模型 (已存在)
+├── config/             # 配置管理
+└── utils/              # 工具函数
+```
+
+#### 创建的文件
+- [commands/mod.rs](src-tauri/src/commands/mod.rs) - IPC 接口层
+- [modules/mod.rs](src-tauri/src/modules/mod.rs) - 业务逻辑模块入口
+- [modules/peer/mod.rs](src-tauri/src/modules/peer/mod.rs) - 节点管理模块
+- [modules/message/mod.rs](src-tauri/src/modules/message/mod.rs) - 消息处理模块
+- [modules/file_transfer/mod.rs](src-tauri/src/modules/file_transfer/mod.rs) - 文件传输模块
+- [modules/crypto/mod.rs](src-tauri/src/modules/crypto/mod.rs) - 加密模块
+- [modules/group/mod.rs](src-tauri/src/modules/group/mod.rs) - 群组管理模块
+- [network/mod.rs](src-tauri/src/network/mod.rs) - 网络通信层
+- [storage/mod.rs](src-tauri/src/storage/mod.rs) - 数据持久化层
+- [config/mod.rs](src-tauri/src/config/mod.rs) - 配置管理
+- [utils/mod.rs](src-tauri/src/utils/mod.rs) - 工具函数
+
+#### 更新的文件
+- [lib.rs](src-tauri/src/lib.rs) - 添加模块声明：
+  ```rust
+  mod commands;
+  mod modules;
+  mod network;
+  mod storage;
+  mod config;
+  mod utils;
+  ```
+
+### 验证结果
+
+| 测试项 | 状态 | 耗时 |
+|--------|------|------|
+| `cargo check` | ✅ 通过 | 17.70s |
+| 模块声明 | ✅ 正确 | - |
+| 目录结构 | ✅ 符合规范 | - |
+| Rust Analyzer | ✅ 识别所有模块 | - |
+
+### 编译警告说明
+出现 18 个警告（unused imports 和 dead code），这是**预期行为**：
+- 实体模型尚未使用，因此 `unused_import` 警告是正常的
+- 这些警告会在后续实现阶段（如阶段 1.4 数据访问层）自动消除
+
+### 遇到的问题
+**问题 1**：`storage` 目录缺少 `mod.rs` 文件
+- **错误**：`error[E0583]: file not found for module storage`
+- **原因**：`storage/` 目录已存在但未创建 `mod.rs`
+- **解决**：创建 `storage/mod.rs` 并导出 `entities` 子模块
+
+### 解决方案
+```rust
+// storage/mod.rs
+pub mod entities;
+```
+
+### 架构洞察
+
+#### 模块化设计原则
+1. **按职责分层**：
+   - `commands/` - 应用层（IPC 接口）
+   - `modules/` - 业务逻辑层
+   - `network/` + `storage/` - 核心层
+   - `config/` + `utils/` - 基础设施层
+
+2. **模块独立性**：
+   - 每个模块有独立的 `mod.rs`
+   - 通过 `pub mod` 控制可见性
+   - 支持渐进式实现
+
+3. **依赖方向**：
+   ```
+   commands → modules → network/storage → utils
+   ```
+   高层模块依赖低层模块，避免循环依赖
+
+### 后续步骤
+下一步是 **0.3: 配置日志系统**，需要：
+1. 在 `utils/` 创建 `logger.rs`
+2. 实现 `init_logger()` 函数
+3. 在 `lib.rs` 的 `run()` 函数中调用
 
 ---
 
