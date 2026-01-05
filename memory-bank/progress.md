@@ -12,7 +12,7 @@
 
 ## 阶段 0：项目基础设施搭建
 
-- [ ] 0.1 添加基础开发依赖
+- [x] 0.1 添加基础开发依赖
 - [ ] 0.2 创建模块目录结构
 - [ ] 0.3 配置日志系统
 - [ ] 0.4 创建错误类型系统
@@ -77,6 +77,77 @@
 ---
 
 # 完成记录
+
+## ✅ 阶段 0.1：添加基础开发依赖
+
+### 完成日期
+2026-01-05
+
+### 完成内容
+
+已在 `src-tauri/Cargo.toml` 中添加以下基础开发依赖：
+
+#### 错误处理库
+- **thiserror = "1"** - 用于派生错误类型，提供结构化的错误处理
+- **anyhow = "1"** - 简化错误处理，用于不需要精确错误类型的场景
+
+#### 工具库
+- **uuid = { version = "1", features = ["v4", "serde"] }** - UUID 生成，支持 v4 版本和序列化
+- **chrono = { version = "0.4", features = ["serde"] }** - 时间处理，支持 UTC 时间和序列化
+- **tracing = "0.1"** - 结构化日志框架
+- **tracing-subscriber = { version = "0.3", features = ["env-filter"] }** - 日志订阅器，支持环境变量过滤
+
+### 验证结果
+
+| 测试项 | 状态 | 耗时 |
+|--------|------|------|
+| `cargo check` | ✅ 通过 | 23.34s |
+| `cargo build` | ✅ 通过 | 6m 11s |
+| 依赖解析 | ✅ 成功 | - |
+| 编译输出 | ✅ `neolan v0.1.0` | - |
+
+### 遇到的问题
+无
+
+### 解决方案
+N/A
+
+### 架构洞察
+
+#### 依赖选型理由
+
+1. **thiserror vs anyhow**
+   - `thiserror`：用于定义库级别的错误类型，提供 `#[error(...)]` 派生宏
+   - `anyhow`：用于应用级别错误处理，简化 `Result` 类型的使用
+   - 两者配合使用：库代码用 `thiserror`，应用逻辑用 `anyhow`
+
+2. **tracing vs log**
+   - `tracing` 是新一代结构化日志框架，支持异步上下文和 Span 追踪
+   - 更适合 Tokio 异步运行时环境
+   - 与 `tracing-subscriber` 配合实现灵活的日志输出控制
+
+3. **chrono features**
+   - `serde` feature 允许 DateTime 类型自动序列化/反序列化
+   - 对于数据库存储和网络传输至关重要
+
+### 后续步骤
+下一步是 **0.2: 创建模块目录结构**，需要创建以下目录结构：
+```
+src-tauri/src/
+├── commands/
+├── modules/
+├── modules/peer/
+├── modules/message/
+├── modules/file_transfer/
+├── modules/crypto/
+├── modules/group/
+├── network/
+├── storage/
+├── config/
+└── utils/
+```
+
+---
 
 *请在完成每个步骤后在此记录详细信息，包括：*
 - *完成日期*
