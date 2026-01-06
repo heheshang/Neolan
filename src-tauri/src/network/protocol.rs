@@ -11,98 +11,98 @@ use serde::{Deserialize, Serialize};
 
 /// Message type constants (compatible with IPMsg protocol)
 pub mod msg_type {
-   // IP Messenger (IPMSG) 常量与工具 (Rust)
-// 基于原始 ipmsg.h / IPMSG.h 的权威映射（mode = 低 8 位，options = 高 24 位）
-#![allow(non_upper_case_globals)]
+    // IP Messenger (IPMSG) 常量与工具 (Rust)
+    // 基于原始 ipmsg.h / IPMSG.h 的权威映射（mode = 低 8 位，options = 高 24 位）
+    #![allow(non_upper_case_globals)]
 
-/// helpers: 从 command 中取出 mode (低 8 位) 与 opts (高 24 位)
-#[inline]
-pub const fn get_mode(command: u32) -> u8 {
-    (command & 0x000000ff) as u8
-}
-#[inline]
-pub const fn get_opt(command: u32) -> u32 {
-    command & 0xffffff00
-}
-#[inline]
-pub const fn has_opt(command: u32, flag: u32) -> bool {
-    (get_opt(command) & flag) != 0
-}
-
-/// 协议头 / 版本 / 端口
-pub const IPMSG_VERSION: u16 = 0x0001;        // 协议版本
-pub const IPMSG_DEFAULT_PORT: u16 = 0x0979;  // 2425
-
-/// command (mode) — 低 8 位
-pub const IPMSG_NOOPERATION: u32    = 0x00000000; // 0 无操作
-pub const IPMSG_BR_ENTRY: u32       = 0x00000001; // 1 广播上线（entry）
-pub const IPMSG_BR_EXIT: u32        = 0x00000002; // 2 广播下线（exit）
-pub const IPMSG_ANSENTRY: u32       = 0x00000003; // 3 对 BR_ENTRY 的应答
-pub const IPMSG_BR_ABSENCE: u32     = 0x00000004; // 4 广播缺席
-
-pub const IPMSG_BR_ISGETLIST: u32   = 0x00000010; // 16 请求是否需要列表（is-getlist）
-pub const IPMSG_OKGETLIST: u32      = 0x00000011; // 17 同意发送列表（ok-getlist）
-pub const IPMSG_GETLIST: u32        = 0x00000012; // 18 请求列表（getlist）
-pub const IPMSG_ANSLIST: u32        = 0x00000013; // 19 返回列表（anslist）
-pub const IPMSG_BR_ISGETLIST2: u32  = 0x00000018; // 24 请求扩展列表（is-getlist2）
-
-pub const IPMSG_SENDMSG: u32        = 0x00000020; // 32 发送消息
-pub const IPMSG_RECVMSG: u32        = 0x00000021; // 33 接收确认
-pub const IPMSG_READMSG: u32        = 0x00000030; // 48 消息已读
-pub const IPMSG_DELMSG: u32         = 0x00000031; // 49 删除消息
-pub const IPMSG_ANSREADMSG: u32     = 0x00000032; // 50 对已读的应答
-
-pub const IPMSG_GETINFO: u32        = 0x00000040; // 64 请求用户信息
-pub const IPMSG_SENDINFO: u32       = 0x00000041; // 65 发送用户信息
-
-pub const IPMSG_GETABSENCEINFO: u32 = 0x00000050; // 80 请求缺席信息
-pub const IPMSG_SENDABSENCEINFO: u32= 0x00000051; // 81 发送缺席信息
-
-pub const IPMSG_GETFILEDATA: u32    = 0x00000060; // 96 请求文件数据（文件传输）
-pub const IPMSG_RELEASEFILES: u32   = 0x00000061; // 97 释放文件资源
-pub const IPMSG_GETDIRFILES: u32    = 0x00000062; // 98 请求目录文件列表
-
-pub const IPMSG_GETPUBKEY: u32      = 0x00000072; // 114 请求公钥
-pub const IPMSG_ANSPUBKEY: u32      = 0x00000073; // 115 应答公钥
-
-/// option / flags（通用 / 全局）
-pub const IPMSG_ABSENCEOPT: u32     = 0x00000100; // 256 缺席标志（全局）
-pub const IPMSG_SERVEROPT: u32      = 0x00000200; // 512 服务器标志（全局）
-pub const IPMSG_DIALUPOPT: u32      = 0x00010000; // 65536 拨号连接标志
-pub const IPMSG_FILEATTACHOPT: u32  = 0x00200000; // 2097152 文件附加标志
-pub const IPMSG_ENCRYPTOPT: u32     = 0x00400000; // 4194304 加密标志
-pub const IPMSG_UTF8OPT: u32        = 0x00800000; // 8388608 UTF-8 编码标志
-
-/// option for send command（发送上下文特有）
-// 注意：有些值与上面的“通用”标志数值相同 —— 解释时应基于 mode（即先 GET_MODE）
-pub const IPMSG_SENDCHECKOPT: u32   = 0x00000100; // 256 发送确认（send 上下文）
-pub const IPMSG_SECRETOPT: u32      = 0x00000200; // 512 私密发送（send 上下文）
-pub const IPMSG_BROADCASTOPT: u32   = 0x00000400; // 1024 广播发送（send 上下文）
-pub const IPMSG_MULTICASTOPT: u32   = 0x00000800; // 2048 多播发送
-pub const IPMSG_NOPOPUPOPT: u32     = 0x00001000; // 4096 不弹出（接收端）
-pub const IPMSG_AUTORETOPT: u32     = 0x00002000; // 8192 自动回复请求
-pub const IPMSG_RETRYOPT: u32       = 0x00004000; // 16384 重试选项
-pub const IPMSG_PASSWORDOPT: u32    = 0x00008000; // 32768 带密码发送
-pub const IPMSG_NOLOGOPT: u32       = 0x00020000; // 131072 不记录日志
-
-// 下面给出一些常用组合构造函数作为参考：
-#[inline]
-pub const fn make_command(mode: u32, opts: u32) -> u32 {
-    (mode & 0x000000ff) | (opts & 0xffffff00)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_mode_opt_helpers() {
-        let cmd = make_command(IPMSG_SENDMSG, IPMSG_FILEATTACHOPT | IPMSG_SENDCHECKOPT);
-        assert_eq!(get_mode(cmd), IPMSG_SENDMSG as u8);
-        assert!(has_opt(cmd, IPMSG_FILEATTACHOPT));
-        assert!(has_opt(cmd, IPMSG_SENDCHECKOPT));
-        assert!(!has_opt(cmd, IPMSG_ENCRYPTOPT));
+    /// helpers: 从 command 中取出 mode (低 8 位) 与 opts (高 24 位)
+    #[inline]
+    pub const fn get_mode(command: u32) -> u8 {
+        (command & 0x000000ff) as u8
     }
-}
+    #[inline]
+    pub const fn get_opt(command: u32) -> u32 {
+        command & 0xffffff00
+    }
+    #[inline]
+    pub const fn has_opt(command: u32, flag: u32) -> bool {
+        (get_opt(command) & flag) != 0
+    }
+
+    /// 协议头 / 版本 / 端口
+    pub const IPMSG_VERSION: u16 = 0x0001; // 协议版本
+    pub const IPMSG_DEFAULT_PORT: u16 = 0x0979; // 2425
+
+    /// command (mode) — 低 8 位
+    pub const IPMSG_NOOPERATION: u32 = 0x00000000; // 0 无操作
+    pub const IPMSG_BR_ENTRY: u32 = 0x00000001; // 1 广播上线（entry）
+    pub const IPMSG_BR_EXIT: u32 = 0x00000002; // 2 广播下线（exit）
+    pub const IPMSG_ANSENTRY: u32 = 0x00000003; // 3 对 BR_ENTRY 的应答
+    pub const IPMSG_BR_ABSENCE: u32 = 0x00000004; // 4 广播缺席
+
+    pub const IPMSG_BR_ISGETLIST: u32 = 0x00000010; // 16 请求是否需要列表（is-getlist）
+    pub const IPMSG_OKGETLIST: u32 = 0x00000011; // 17 同意发送列表（ok-getlist）
+    pub const IPMSG_GETLIST: u32 = 0x00000012; // 18 请求列表（getlist）
+    pub const IPMSG_ANSLIST: u32 = 0x00000013; // 19 返回列表（anslist）
+    pub const IPMSG_BR_ISGETLIST2: u32 = 0x00000018; // 24 请求扩展列表（is-getlist2）
+
+    pub const IPMSG_SENDMSG: u32 = 0x00000020; // 32 发送消息
+    pub const IPMSG_RECVMSG: u32 = 0x00000021; // 33 接收确认
+    pub const IPMSG_READMSG: u32 = 0x00000030; // 48 消息已读
+    pub const IPMSG_DELMSG: u32 = 0x00000031; // 49 删除消息
+    pub const IPMSG_ANSREADMSG: u32 = 0x00000032; // 50 对已读的应答
+
+    pub const IPMSG_GETINFO: u32 = 0x00000040; // 64 请求用户信息
+    pub const IPMSG_SENDINFO: u32 = 0x00000041; // 65 发送用户信息
+
+    pub const IPMSG_GETABSENCEINFO: u32 = 0x00000050; // 80 请求缺席信息
+    pub const IPMSG_SENDABSENCEINFO: u32 = 0x00000051; // 81 发送缺席信息
+
+    pub const IPMSG_GETFILEDATA: u32 = 0x00000060; // 96 请求文件数据（文件传输）
+    pub const IPMSG_RELEASEFILES: u32 = 0x00000061; // 97 释放文件资源
+    pub const IPMSG_GETDIRFILES: u32 = 0x00000062; // 98 请求目录文件列表
+
+    pub const IPMSG_GETPUBKEY: u32 = 0x00000072; // 114 请求公钥
+    pub const IPMSG_ANSPUBKEY: u32 = 0x00000073; // 115 应答公钥
+
+    /// option / flags（通用 / 全局）
+    pub const IPMSG_ABSENCEOPT: u32 = 0x00000100; // 256 缺席标志（全局）
+    pub const IPMSG_SERVEROPT: u32 = 0x00000200; // 512 服务器标志（全局）
+    pub const IPMSG_DIALUPOPT: u32 = 0x00010000; // 65536 拨号连接标志
+    pub const IPMSG_FILEATTACHOPT: u32 = 0x00200000; // 2097152 文件附加标志
+    pub const IPMSG_ENCRYPTOPT: u32 = 0x00400000; // 4194304 加密标志
+    pub const IPMSG_UTF8OPT: u32 = 0x00800000; // 8388608 UTF-8 编码标志
+
+    /// option for send command（发送上下文特有）
+    // 注意：有些值与上面的“通用”标志数值相同 —— 解释时应基于 mode（即先 GET_MODE）
+    pub const IPMSG_SENDCHECKOPT: u32 = 0x00000100; // 256 发送确认（send 上下文）
+    pub const IPMSG_SECRETOPT: u32 = 0x00000200; // 512 私密发送（send 上下文）
+    pub const IPMSG_BROADCASTOPT: u32 = 0x00000400; // 1024 广播发送（send 上下文）
+    pub const IPMSG_MULTICASTOPT: u32 = 0x00000800; // 2048 多播发送
+    pub const IPMSG_NOPOPUPOPT: u32 = 0x00001000; // 4096 不弹出（接收端）
+    pub const IPMSG_AUTORETOPT: u32 = 0x00002000; // 8192 自动回复请求
+    pub const IPMSG_RETRYOPT: u32 = 0x00004000; // 16384 重试选项
+    pub const IPMSG_PASSWORDOPT: u32 = 0x00008000; // 32768 带密码发送
+    pub const IPMSG_NOLOGOPT: u32 = 0x00020000; // 131072 不记录日志
+
+    // 下面给出一些常用组合构造函数作为参考：
+    #[inline]
+    pub const fn make_command(mode: u32, opts: u32) -> u32 {
+        (mode & 0x000000ff) | (opts & 0xffffff00)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn test_mode_opt_helpers() {
+            let cmd = make_command(IPMSG_SENDMSG, IPMSG_FILEATTACHOPT | IPMSG_SENDCHECKOPT);
+            assert_eq!(get_mode(cmd), IPMSG_SENDMSG as u8);
+            assert!(has_opt(cmd, IPMSG_FILEATTACHOPT));
+            assert!(has_opt(cmd, IPMSG_SENDCHECKOPT));
+            assert!(!has_opt(cmd, IPMSG_ENCRYPTOPT));
+        }
+    }
 }
 
 /// IPMsg protocol version (NeoLan uses version 1)
@@ -193,6 +193,7 @@ pub struct FileSendResponse {
 pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
     // Convert bytes to UTF-8 string (using lossy conversion for FeiQ GBK encoding)
     let message_str = String::from_utf8_lossy(data);
+    tracing::debug!("Received message: {}", message_str);
 
     // Handle FeiQ hybrid format: contains '#' followed by IPMsg-compatible section
     // FeiQ format: 1_lbt4_6#128#C81F663237C8#0#0#0#311c#9:1761386707:cgc:DESKTOP-IOHG15K:6291459:...
@@ -209,9 +210,7 @@ pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
     };
 
     // Split by delimiter
-    let fields: Vec<&str> = parse_section
-        .split(PROTOCOL_DELIMITER)
-        .collect();
+    let fields: Vec<&str> = parse_section.split(PROTOCOL_DELIMITER).collect();
 
     // Validate minimum field count
     if fields.len() < MIN_FIELD_COUNT {
@@ -228,10 +227,18 @@ pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
     // FeiQ timestamp is typically a 10-digit Unix timestamp (e.g., 1761386707)
     let (version, packet_id, sender_name, sender_host) = {
         // Try to detect if fields[1] is a timestamp (10-digit number)
-        if fields.len() >= 6 && fields[1].len() == 10 && fields[1].chars().all(|c| c.is_ascii_digit()) {
+        if fields.len() >= 6
+            && fields[1].len() == 10
+            && fields[1].chars().all(|c| c.is_ascii_digit())
+        {
             // FeiQ format detected: fields[0]=packet_id, fields[1]=timestamp, fields[2]=name, fields[3]=host
-            tracing::debug!("Detected FeiQ format message (with timestamp field)");
-            (PROTOCOL_VERSION, fields[0], fields[2].to_string(), fields[3].to_string())
+            eprintln!("Detected FeiQ format message (with timestamp field)");
+            (
+                PROTOCOL_VERSION,
+                fields[0],
+                fields[2].to_string(),
+                fields[3].to_string(),
+            )
         } else {
             // Standard IPMsg format
             let v: u8 = fields[0]
@@ -243,8 +250,11 @@ pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
 
     // Validate version (FeiQ compatibility: only warn, don't error)
     if version != PROTOCOL_VERSION {
-        tracing::warn!("Protocol version {} differs from expected {}, accepting for compatibility",
-            version, PROTOCOL_VERSION);
+        tracing::warn!(
+            "Protocol version {} differs from expected {}, accepting for compatibility",
+            version,
+            PROTOCOL_VERSION
+        );
     }
 
     // Parse packet ID
@@ -262,19 +272,23 @@ pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
 
     // Validate sender name is not empty
     if sender_name.is_empty() {
-        return Err(NeoLanError::Protocol("Sender name cannot be empty".to_string()));
+        return Err(NeoLanError::Protocol(
+            "Sender name cannot be empty".to_string(),
+        ));
     }
 
     // Validate sender host is not empty
     if sender_host.is_empty() {
-        return Err(NeoLanError::Protocol("Sender host cannot be empty".to_string()));
+        return Err(NeoLanError::Protocol(
+            "Sender host cannot be empty".to_string(),
+        ));
     }
 
     // Parse message type (at fields[4] for both FeiQ and standard formats)
     let msg_type: u32 = fields[4]
         .parse()
         .map_err(|_| NeoLanError::Protocol(format!("Invalid msg_type: {}", fields[4])))?;
-
+    eprintln!("Received message: msg_type{}", msg_type);
     // Extract content (fields 5+ are joined with ":")
     // This allows content to contain ":" as well
     let content = if fields.len() > 6 {
@@ -348,7 +362,9 @@ pub fn serialize_message(msg: &ProtocolMessage) -> Result<Vec<u8>> {
 
     // Validate sender name
     if msg.sender_name.is_empty() {
-        return Err(NeoLanError::Protocol("Sender name cannot be empty".to_string()));
+        return Err(NeoLanError::Protocol(
+            "Sender name cannot be empty".to_string(),
+        ));
     }
 
     // Check for delimiter in sender name
@@ -360,7 +376,9 @@ pub fn serialize_message(msg: &ProtocolMessage) -> Result<Vec<u8>> {
 
     // Validate sender host
     if msg.sender_host.is_empty() {
-        return Err(NeoLanError::Protocol("Sender host cannot be empty".to_string()));
+        return Err(NeoLanError::Protocol(
+            "Sender host cannot be empty".to_string(),
+        ));
     }
 
     // Check for delimiter in sender host
@@ -382,12 +400,7 @@ pub fn serialize_message(msg: &ProtocolMessage) -> Result<Vec<u8>> {
     // Build protocol string
     let protocol_string = format!(
         "{}:{}:{}:{}:{}:{}",
-        msg.version,
-        msg.packet_id,
-        msg.sender_name,
-        msg.sender_host,
-        msg.msg_type,
-        msg.content
+        msg.version, msg.packet_id, msg.sender_name, msg.sender_host, msg.msg_type, msg.content
     );
 
     // Convert to bytes (UTF-8)
@@ -435,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_parse_text_message() {
-        let data = b"1:123:Alice:alice-pc:32:Hello World";  // 32 = IPMSG_SENDMSG
+        let data = b"1:123:Alice:alice-pc:32:Hello World"; // 32 = IPMSG_SENDMSG
         let msg = parse_message(data).unwrap();
 
         assert_eq!(msg.version, 1);
@@ -465,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_parse_empty_content() {
-        let data = b"1:1:Alice:alice-pc:1:";  // 1 = IPMSG_BR_ENTRY
+        let data = b"1:1:Alice:alice-pc:1:"; // 1 = IPMSG_BR_ENTRY
         let msg = parse_message(data).unwrap();
 
         assert_eq!(msg.version, 1);
@@ -493,7 +506,7 @@ mod tests {
     #[test]
     fn test_content_with_colon() {
         // Content containing ":" should be preserved by joining fields 5+
-        let data = b"1:1:Alice:alice-pc:32:Time: 12:30:45";  // 32 = IPMSG_SENDMSG
+        let data = b"1:1:Alice:alice-pc:32:Time: 12:30:45"; // 32 = IPMSG_SENDMSG
         let msg = parse_message(data).unwrap();
 
         // Fields 5+ are joined with ":"
@@ -581,7 +594,7 @@ mod tests {
     fn test_invalid_version() {
         // For compatibility with FeiQ and other IPMsg implementations,
         // parse_message accepts different versions (warns but doesn't error)
-        let data = b"2:1:Alice:alice-pc:32:test";  // 32 = IPMSG_SENDMSG
+        let data = b"2:1:Alice:alice-pc:32:test"; // 32 = IPMSG_SENDMSG
         let result = parse_message(data);
 
         // Should parse successfully (version 2 is accepted for compatibility)
@@ -614,7 +627,7 @@ mod tests {
 
     #[test]
     fn test_empty_sender_name() {
-        let data = b"1:1::alice-pc:32:test";  // 32 = IPMSG_SENDMSG
+        let data = b"1:1::alice-pc:32:test"; // 32 = IPMSG_SENDMSG
         let result = parse_message(data);
 
         assert!(result.is_err());
@@ -637,8 +650,14 @@ mod tests {
 
     #[test]
     fn test_get_message_type_name() {
-        assert_eq!(get_message_type_name(msg_type::IPMSG_SENDMSG), "IPMSG_SENDMSG");
-        assert_eq!(get_message_type_name(msg_type::IPMSG_BR_ENTRY), "IPMSG_BR_ENTRY");
+        assert_eq!(
+            get_message_type_name(msg_type::IPMSG_SENDMSG),
+            "IPMSG_SENDMSG"
+        );
+        assert_eq!(
+            get_message_type_name(msg_type::IPMSG_BR_ENTRY),
+            "IPMSG_BR_ENTRY"
+        );
         assert_eq!(get_message_type_name(0xFFFFFFFF), "UNKNOWN");
     }
 
