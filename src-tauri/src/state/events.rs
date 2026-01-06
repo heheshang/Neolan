@@ -33,6 +33,21 @@ pub enum AppEvent {
 
     /// Error occurred
     Error { message: String },
+
+    /// Message received
+    MessageReceived {
+        msg_id: String,
+        sender_ip: String,
+        sender_name: String,
+        content: String,
+        timestamp: i64,
+    },
+
+    /// Message sent
+    MessageSent {
+        msg_id: String,
+        receiver_ip: String,
+    },
 }
 
 impl AppEvent {
@@ -61,6 +76,31 @@ impl AppEvent {
     /// Create an error event
     pub fn error(message: String) -> Self {
         Self::Error { message }
+    }
+
+    /// Create a message received event
+    pub fn message_received(
+        msg_id: String,
+        sender_ip: IpAddr,
+        sender_name: String,
+        content: String,
+        timestamp: i64,
+    ) -> Self {
+        Self::MessageReceived {
+            msg_id,
+            sender_ip: sender_ip.to_string(),
+            sender_name,
+            content,
+            timestamp,
+        }
+    }
+
+    /// Create a message sent event
+    pub fn message_sent(msg_id: String, receiver_ip: IpAddr) -> Self {
+        Self::MessageSent {
+            msg_id,
+            receiver_ip: receiver_ip.to_string(),
+        }
     }
 }
 

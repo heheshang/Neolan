@@ -43,6 +43,21 @@ export interface AppEvent {
   data?: any;
 }
 
+export interface MessageDto {
+  id: number;
+  msgId: string;
+  senderIp: string;
+  senderName: string;
+  receiverIp: string;
+  msgType: number;
+  content: string;
+  isEncrypted: boolean;
+  isOffline: boolean;
+  sentAt: number;
+  receivedAt?: number;
+  createdAt: number;
+}
+
 // ==================== Peer Commands ====================
 
 export async function getPeers(): Promise<PeerDto[]> {
@@ -97,4 +112,21 @@ export async function setConfigValue(key: string, value: string): Promise<void> 
 export async function pollEvents(): Promise<AppEvent[]> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<AppEvent[]>("poll_events");
+}
+
+// ==================== Message Commands ====================
+
+export async function sendMessage(peerIp: string, content: string): Promise<string> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("send_message", { peerIp, content });
+}
+
+export async function sendTextMessage(peerIp: string, content: string): Promise<string> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("send_text_message", { peerIp, content });
+}
+
+export async function getMessages(peerIp: string, limit?: number): Promise<MessageDto[]> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<MessageDto[]>("get_messages", { peerIp, limit });
 }

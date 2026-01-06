@@ -17,6 +17,7 @@ pub use state::AppState;
 use commands::peer::{get_peers, get_online_peers, get_peer_by_ip, get_peer_stats};
 use commands::config::{get_config, set_config, reset_config, get_config_value, set_config_value};
 use commands::events::poll_events;
+use commands::message::{send_message, send_text_message, get_messages};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -53,6 +54,9 @@ pub fn run() {
             get_config_value,
             set_config_value,
             poll_events,
+            send_message,
+            send_text_message,
+            get_messages,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

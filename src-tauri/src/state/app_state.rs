@@ -3,6 +3,7 @@
 // Provides a centralized state management structure for the Tauri application.
 
 use crate::config::AppConfig;
+use crate::modules::message::MessageHandler;
 use crate::modules::peer::{PeerManager, PeerNode};
 use crate::Result;
 use std::sync::{Arc, Mutex};
@@ -17,6 +18,9 @@ pub struct AppState {
     /// Peer manager (when initialized)
     peer_manager: Arc<Mutex<Option<PeerManager>>>,
 
+    /// Message handler (when initialized)
+    message_handler: Arc<Mutex<Option<MessageHandler>>>,
+
     /// Current application configuration
     config: Arc<Mutex<AppConfig>>,
 
@@ -29,6 +33,7 @@ impl AppState {
     pub fn new(config: AppConfig) -> Self {
         Self {
             peer_manager: Arc::new(Mutex::new(None)),
+            message_handler: Arc::new(Mutex::new(None)),
             config: Arc::new(Mutex::new(config)),
             event_emitter: Arc::new(Mutex::new(super::events::AppEventEmitter::new())),
         }
@@ -125,6 +130,43 @@ impl AppState {
             emitter.drain()
         } else {
             Vec::new()
+        }
+    }
+
+    // ==================== Message Handler Methods ====================
+
+    /// Initialize the message handler
+    ///
+    /// This should be called once during application startup.
+    pub fn init_message_handler(&self, message_handler: MessageHandler) {
+        let mut mh = self.message_handler.lock().unwrap();
+        *mh = Some(message_handler);
+    }
+
+    /// Send a text message to a peer
+    ///
+    /// # Arguments
+    /// * `target_ip` - IP address of the target peer
+    /// * `content` - Message content
+    ///
+    /// # Returns
+    /// * `Ok(msg_id)` - Message sent successfully, returns message ID
+    /// * `Err(NeoLanError)` - Send failed
+    pub fn send_message(&self, target_ip: std::net::IpAddr, content: &str) -> Result<String> {
+        if let Some(handler) = self.message_handler.lock().unwrap().as_ref() {
+            handler.send_text_message(target_ip, content)?;
+
+            // Get the packet ID that was used
+            let msg_id = handler.packet_id_counter().to_string();
+
+            // Emit message sent event
+            self.emit_event(super::events::AppEvent::message_sent(msg_id.clone(), target_ip));
+
+            Ok(msg_id)
+        } else {
+            Err(crate::NeoLanError::Other(
+                "Message handler not initialized".to_string(),
+            ))
         }
     }
 }

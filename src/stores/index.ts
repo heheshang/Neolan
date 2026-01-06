@@ -4,4 +4,4 @@ export { useConfigStore } from "./configStore";
 export { useEventStore } from "./eventStore";
 
 // Re-export types from API
-export type { PeerDto, PeerStats, ConfigDto, AppEvent } from "../api";
+export type { PeerDto, PeerStats, ConfigDto, AppEvent, MessageDto } from "../api";
