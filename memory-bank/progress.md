@@ -14,7 +14,7 @@
 
 - [x] 0.1 添加基础开发依赖
 - [x] 0.2 创建模块目录结构
-- [ ] 0.3 配置日志系统
+- [x] 0.3 配置日志系统
 - [ ] 0.4 创建错误类型系统
 
 ## 阶段 1：数据持久化层
@@ -248,6 +248,106 @@ pub mod entities;
 1. 在 `utils/` 创建 `logger.rs`
 2. 实现 `init_logger()` 函数
 3. 在 `lib.rs` 的 `run()` 函数中调用
+
+---
+
+## ✅ 阶段 0.3：配置日志系统
+
+### 完成日期
+2026-01-05
+
+### 完成内容
+
+#### 创建的文件
+- [utils/logger.rs](src-tauri/src/utils/logger.rs) - 日志初始化模块
+  - `init_logger()` 函数 - 初始化 tracing 日志系统
+  - 支持从 `RUST_LOG` 环境变量读取日志级别
+  - 默认日志级别为 `info`
+  - 包含单元测试 `test_logger_init()`
+
+#### 更新的文件
+- [utils/mod.rs](src-tauri/src/utils/mod.rs) - 添加 `pub mod logger;`
+- [lib.rs](src-tauri/src/lib.rs) - 在 `run()` 函数开头调用日志初始化：
+  ```rust
+  // Initialize logging system first
+  utils::logger::init_logger();
+
+  // Log application startup
+  tracing::info!("NeoLan starting...");
+  ```
+
+### 功能特性
+
+1. **环境变量控制**：
+   - `RUST_LOG=info` - 设置默认日志级别为 info
+   - `RUST_LOG=debug` - 启用详细调试信息
+   - `RUST_LOG=neolan::network=debug` - 仅对特定模块启用 debug
+
+2. **日志格式**：
+   - 时间戳
+   - 日志级别 (INFO/WARN/ERROR/DEBUG)
+   - 模块路径
+   - 源文件和行号
+   - 日志消息
+
+3. **测试覆盖**：
+   - 包含单元测试验证初始化功能
+
+### 验证结果
+
+| 测试项 | 状态 | 耗时 |
+|--------|------|------|
+| `cargo check` | ✅ 通过 | 22.82s |
+| 日志初始化 | ✅ 正确 | - |
+| 测试日志输出 | ✅ 正常 | - |
+
+### 使用示例
+
+#### 开发调试
+```bash
+# 启用调试级别日志
+RUST_LOG=debug npm run tauri dev
+```
+
+#### 生产环境
+```bash
+# 使用默认 info 级别
+npm run tauri dev
+```
+
+#### 调试特定模块
+```bash
+# 只查看网络模块的详细日志
+RUST_LOG=info,neolan::network=debug npm run tauri dev
+```
+
+### 遇到的问题
+无
+
+### 架构洞察
+
+#### Tracing vs Log 框架选择
+
+1. **结构化日志**：
+   - `tracing` 提供结构化日志记录，支持 Span 和上下文
+   - 更适合异步运行时（Tokio）
+   - 可以追踪跨异步任务的执行流程
+
+2. **性能优势**：
+   - 延迟日志格式化（只在需要时格式化）
+   - 支持动态过滤（运行时调整日志级别）
+   - 零成本抽象（`log::trace!` 在 Release 模式下可被优化掉）
+
+3. **与 Tauri 集成**：
+   - 在 `run()` 函数开头初始化，确保所有模块都能使用
+   - 日志输出到终端，便于开发调试
+   - 生产环境可重定向到文件
+
+### 后续步骤
+下一步是 **0.4: 创建错误类型系统**，需要：
+1. 在 `src-tauri/src/` 创建 `error.rs`
+2. 使用 `thiserror` 定义完整的错误类型
+3. 在 `lib.rs` 中导出错误类型
 
 ---
 
