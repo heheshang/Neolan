@@ -11,10 +11,8 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 /// # Example
 ///
 /// ```no_run
-/// use neolan::utils::logger;
-///
 /// fn main() {
-///     logger::init_logger();
+///     neolan_lib::utils::logger::init_logger();
 ///     tracing::info!("Application started");
 /// }
 /// ```

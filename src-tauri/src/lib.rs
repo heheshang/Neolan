@@ -1,10 +1,22 @@
 // Module declarations
 mod commands;
+mod migration;
 mod modules;
-mod network;
+pub mod network;
 mod storage;
 mod config;
-mod utils;
+pub mod state;
+pub mod utils;
+mod error;
+
+// Re-export commonly used types
+pub use error::{NeoLanError, Result};
+pub use state::AppState;
+
+// Import Tauri commands from submodules
+use commands::peer::{get_peers, get_online_peers, get_peer_by_ip, get_peer_stats};
+use commands::config::{get_config, set_config, reset_config, get_config_value, set_config_value};
+use commands::events::poll_events;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -20,9 +32,28 @@ pub fn run() {
     // Log application startup
     tracing::info!("NeoLan starting...");
 
+    // Create default application configuration
+    let default_config = config::AppConfig::default();
+
+    // Initialize application state
+    let app_state = AppState::new(default_config);
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .manage(app_state)
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            get_peers,
+            get_online_peers,
+            get_peer_by_ip,
+            get_peer_stats,
+            get_config,
+            set_config,
+            reset_config,
+            get_config_value,
+            set_config_value,
+            poll_events,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

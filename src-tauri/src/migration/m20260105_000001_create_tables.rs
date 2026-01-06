@@ -1,5 +1,6 @@
 // src-tauri/src/migration/m20260105_000001_create_tables.rs
 use sea_orm_migration::prelude::*;
+use sea_orm_migration::schema::*;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -56,7 +57,7 @@ impl MigrationTrait for Migration {
                     .table(Messages::Table)
                     .if_not_exists()
                     .col(pk_auto(Messages::Id))
-                    .col(string(Messages::MsgId))
+                    .col(string(Messages::MsgId).unique_key())
                     .col(string(Messages::SenderIp))
                     .col(string(Messages::SenderName))
                     .col(string(Messages::ReceiverIp))
@@ -129,7 +130,7 @@ impl MigrationTrait for Migration {
                     .table(Transfers::Table)
                     .if_not_exists()
                     .col(pk_auto(Transfers::Id))
-                    .col(string(Transfers::TaskId))
+                    .col(string(Transfers::TaskId).unique_key())
                     .col(string(Transfers::Direction))
                     .col(string(Transfers::FileName))
                     .col(big_integer(Transfers::FileSize))
@@ -193,7 +194,7 @@ impl MigrationTrait for Migration {
                     .table(Groups::Table)
                     .if_not_exists()
                     .col(pk_auto(Groups::Id))
-                    .col(string(Groups::Name))
+                    .col(string(Groups::Name).unique_key())
                     .col(string_null(Groups::Color))
                     .col(integer(Groups::SortOrder).default(0))
                     .col(timestamp(Groups::CreatedAt))
