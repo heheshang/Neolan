@@ -170,26 +170,50 @@ NeoLan基于飞鸽传书(IPMsg)协议设计，兼容IPMsg节点通信，同时�
 
 ## 3.3 消息类型定义
 
-### 3.3.1 核心消息类型
+基于 IPMsg 协议标准（兼容 IPMsg/飞鸽传书/飞秋）：
+
+### 3.3.1 协议常量
+
+| 常量名 | 值 | 说明 |
+|--------|-----|------|
+| IPMSG_VERSION | 0x0001 | 协议版本 |
+| IPMSG_DEFAULT_PORT | 2425 (0x0979) | 默认 UDP 端口 |
+
+### 3.3.2 核心消息类型（mode - 低 8 位）
 
 | 类型值 | 消息名称 | 传输协议 | 需要回执 | 说明 |
 |--------|---------|---------|---------|------|
-| 0x00000001 | STATUS_ONLINE | UDP | 否 | 节点上线通知 |
-| 0x00000002 | STATUS_OFFLINE | UDP | 否 | 节点离线通知 |
-| 0x00000004 | MSG_SEND | UDP/TCP | 是 | 文本消息发送 |
-| 0x00000008 | MSG_RECEIPT | UDP | 否 | 消息接收回执 |
-| 0x00000020 | FILE_SEND_REQ | UDP | 是 | 文件传输请求 |
-| 0x00000040 | FILE_SEND_RSP | UDP | 否 | 文件传输响应 |
-| 0x00000080 | STATUS_HEARTBEAT | UDP | 否 | 心跳检测 |
-| 0x00000100 | FILE_DATA | TCP | 是 | 文件数据分片 |
-| 0x00000200 | FILE_COMPLETE | TCP | 是 | 文件传输完成 |
-| 0x00000400 | FILE_PAUSE | UDP | 是 | 暂停传输 |
-| 0x00000800 | FILE_RESUME | UDP | 是 | 恢复传输 |
-| 0x00001000 | GROUP_CREATE | UDP | 是 | 创建群组 |
-| 0x00002000 | GROUP_INVITE | UDP | 是 | 邀请入群 |
-| 0x00004000 | GROUP_MSG | UDP/TCP | 是 | 群组消息 |
+| 0x00000000 | IPMSG_NOOPERATION | - | 否 | 无操作 |
+| 0x00000001 | IPMSG_BR_ENTRY | UDP | 否 | 广播上线 |
+| 0x00000002 | IPMSG_BR_EXIT | UDP | 否 | 广播下线 |
+| 0x00000003 | IPMSG_ANSENTRY | UDP | 否 | 对 BR_ENTRY 的应答 |
+| 0x00000004 | IPMSG_BR_ABSENCE | UDP | 否 | 广播缺席 |
+| 0x00000010 | IPMSG_BR_ISGETLIST | UDP | 否 | 请求列表 |
+| 0x00000011 | IPMSG_OKGETLIST | UDP | 否 | 同意发送列表 |
+| 0x00000012 | IPMSG_GETLIST | UDP | 否 | 请求列表 |
+| 0x00000013 | IPMSG_ANSLIST | UDP | 否 | 返回列表 |
+| 0x00000020 | IPMSG_SENDMSG | UDP/TCP | 是 | 发送消息 |
+| 0x00000021 | IPMSG_RECVMSG | UDP | 否 | 接收确认 |
+| 0x00000030 | IPMSG_READMSG | UDP | 否 | 消息已读 |
+| 0x00000031 | IPMSG_DELMSG | UDP | 否 | 删除消息 |
+| 0x00000060 | IPMSG_GETFILEDATA | UDP | 是 | 请求文件数据 |
+| 0x00000061 | IPMSG_RELEASEFILES | UDP | 否 | 释放文件资源 |
 
-### 3.3.2 扩展消息类型（NeoLan新增）
+### 3.3.3 选项标志（options - 高 24 位）
+
+| 类型值 | 标志名称 | 说明 |
+|--------|---------|------|
+| 0x00000100 | IPMSG_SENDCHECKOPT | 发送确认 |
+| 0x00000400 | IPMSG_BROADCASTOPT | 广播发送 |
+| 0x00200000 | IPMSG_FILEATTACHOPT | 文件附加标志 |
+| 0x00400000 | IPMSG_ENCRYPTOPT | 加密标志 |
+| 0x00800000 | IPMSG_UTF8OPT | UTF-8 编码标志 |
+
+**注**：选项标志通过位或运算与消息类型组合使用，例如：
+- 加密消息：`IPMSG_SENDMSG | IPMSG_ENCRYPTOPT`
+- 带文件的消息：`IPMSG_SENDMSG | IPMSG_FILEATTACHOPT`
+
+### 3.3.4 扩展消息类型（NeoLan新增）
 
 | 类型值 | 消息名称 | 传输协议 | 说明 |
 |--------|---------|---------|------|
@@ -222,14 +246,14 @@ NeoLan基于飞鸽传书(IPMsg)协议设计，兼容IPMsg节点通信，同时�
 
 ```
 发送内容：
-2:1736102400002:张三-技术部:DESKTOP-ABC123:0x00000004:今天下午3点开项目例会
+1:1736102400002:张三-技术部:DESKTOP-ABC123:0x00000020:今天下午3点开项目例会
 
 字段解析：
-- 版本号：2（NeoLan扩展版）
+- 版本号：1（兼容 IPMsg）
 - 包编号：1736102400002
 - 发送方用户名：张三-技术部
 - 发送方机器名：DESKTOP-ABC123
-- 消息类型：0x00000004（文本消息）
+- 消息类型：0x00000020（IPMSG_SENDMSG 文本消息）
 - 消息内容：今天下午3点开项目例会
 ```
 
@@ -237,14 +261,14 @@ NeoLan基于飞鸽传书(IPMsg)协议设计，兼容IPMsg节点通信，同时�
 
 ```
 发送内容：
-2:1736102400003:张三-技术部:DESKTOP-ABC123:0x00000020:{"name":"项目文档.docx","size":1024000,"md5":"d41d8cd98f00b204e9800998ecf8427e"}
+1:1736102400003:张三-技术部:DESKTOP-ABC123:0x00000060:{"name":"项目文档.docx","size":1024000,"md5":"d41d8cd98f00b204e9800998ecf8427e"}
 
 字段解析：
-- 版本号：2
+- 版本号：1（兼容 IPMsg）
 - 包编号：1736102400003
 - 发送方用户名：张三-技术部
 - 发送方机器名：DESKTOP-ABC123
-- 消息类型：0x00000020（文件传输请求）
+- 消息类型：0x00000060（IPMSG_GETFILEDATA 文件传输请求）
 - 消息内容：JSON格式的文件元数据
   {
     "name": "项目文档.docx",           // 文件名
@@ -257,14 +281,14 @@ NeoLan基于飞鸽传书(IPMsg)协议设计，兼容IPMsg节点通信，同时�
 
 ```
 发送内容：
-2:1736102400004:张三-技术部:DESKTOP-ABC123:0x00100004:U2FsdGVkX1+vupppZksvRf5pq5g5XjFRlipRkwB0K1Y96Qsv2Lm+31cmzaAILwytJHoXyYvlVhPp0KWuV6qHO+Q==:1:0
+1:1736102400004:张三-技术部:DESKTOP-ABC123:0x00400020:U2FsdGVkX1+vupppZksvRf5pq5g5XjFRlipRkwB0K1Y96Qsv2Lm+31cmzaAILwytJHoXyYvlVhPp0KWuV6qHO+Q==:1:0
 
 字段解析：
-- 版本号：2
+- 版本号：1（兼容 IPMsg）
 - 包编号：1736102400004
 - 发送方用户名：张三-技术部
 - 发送方机器名：DESKTOP-ABC123
-- 消息类型：0x00100004（加密文本消息，0x00000004 | 0x00100000）
+- 消息类型：0x00400020（加密文本消息，IPMSG_SENDMSG | IPMSG_ENCRYPTOPT）
 - 消息内容：Base64编码的AES-256加密数据
 - 加密标识：1（已加密）
 - 密钥索引：0（密钥库索引）

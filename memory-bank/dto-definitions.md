@@ -242,7 +242,200 @@ export interface TransferDto {
 
 ---
 
-# 4. AppConfigDto
+# 4. ProtocolDto
+
+## 用途
+IPMsg 协议消息传输对象，用于网络层和消息层之间的数据传递
+
+## Rust 定义
+
+```rust
+// src-tauri/src/network/protocol.rs
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ProtocolMessage {
+    /// 协议版本 (NeoLan 使用 1)
+    pub version: u8,
+
+    /// 数据包 ID (单调递增)
+    pub packet_id: u64,
+
+    /// 发送方用户名 (显示名称)
+    pub sender_name: String,
+
+    /// 发送方主机名
+    pub sender_host: String,
+
+    /// 消息类型 (见 msg_type 常量)
+    pub msg_type: u32,
+
+    /// 消息内容 (格式取决于 msg_type)
+    pub content: String,
+}
+```
+
+## 协议常量
+
+```rust
+pub mod msg_type {
+    /// 协议版本
+    pub const IPMSG_VERSION: u16 = 0x0001;        // 协议版本
+    pub const IPMSG_DEFAULT_PORT: u16 = 0x0979;  // 2425
+
+    // 消息类型 (mode - 低 8 位)
+    pub const IPMSG_NOOPERATION: u32    = 0x00000000; // 0 无操作
+    pub const IPMSG_BR_ENTRY: u32       = 0x00000001; // 1 广播上线
+    pub const IPMSG_BR_EXIT: u32        = 0x00000002; // 2 广播下线
+    pub const IPMSG_ANSENTRY: u32       = 0x00000003; // 3 对 BR_ENTRY 的应答
+    pub const IPMSG_BR_ABSENCE: u32     = 0x00000004; // 4 广播缺席
+    pub const IPMSG_BR_ISGETLIST: u32   = 0x00000010; // 16 请求列表
+    pub const IPMSG_OKGETLIST: u32      = 0x00000011; // 17 同意发送列表
+    pub const IPMSG_GETLIST: u32        = 0x00000012; // 18 请求列表
+    pub const IPMSG_ANSLIST: u32        = 0x00000013; // 19 返回列表
+    pub const IPMSG_SENDMSG: u32        = 0x00000020; // 32 发送消息
+    pub const IPMSG_RECVMSG: u32        = 0x00000021; // 33 接收确认
+    pub const IPMSG_READMSG: u32        = 0x00000030; // 48 消息已读
+    pub const IPMSG_DELMSG: u32         = 0x00000031; // 49 删除消息
+    pub const IPMSG_GETFILEDATA: u32    = 0x00000060; // 96 请求文件数据
+    pub const IPMSG_RELEASEFILES: u32   = 0x00000061; // 97 释放文件资源
+
+    // 选项标志 (options - 高 24 位)
+    pub const IPMSG_FILEATTACHOPT: u32  = 0x00200000; // 2097152 文件附加
+    pub const IPMSG_ENCRYPTOPT: u32     = 0x00400000; // 4194304 加密
+    pub const IPMSG_UTF8OPT: u32        = 0x00800000; // 8388608 UTF-8 编码
+    pub const IPMSG_SENDCHECKOPT: u32   = 0x00000100; // 256 发送确认
+    pub const IPMSG_BROADCASTOPT: u32   = 0x00000400; // 1024 广播发送
+}
+```
+
+## 辅助函数
+
+```rust
+// 从 command 中提取 mode (低 8 位)
+pub const fn get_mode(command: u32) -> u8 {
+    (command & 0x000000ff) as u8
+}
+
+// 从 command 中提取 opts (高 24 位)
+pub const fn get_opt(command: u32) -> u32 {
+    command & 0xffffff00
+}
+
+// 检查是否包含某个选项
+pub const fn has_opt(command: u32, flag: u32) -> bool {
+    (get_opt(command) & flag) != 0
+}
+```
+
+## TypeScript 类型
+
+```typescript
+// src/types/protocol.ts
+export interface ProtocolMessage {
+  version: number;
+  packet_id: number;
+  sender_name: string;
+  sender_host: string;
+  msg_type: number;
+  content: string;
+}
+
+export namespace MsgType {
+  // 消息类型常量
+  export const NOOPERATION = 0x00000000;
+  export const BR_ENTRY = 0x00000001;
+  export const BR_EXIT = 0x00000002;
+  export const ANSENTRY = 0x00000003;
+  export const BR_ABSENCE = 0x00000004;
+  export const SENDMSG = 0x00000020;
+  export const RECVMSG = 0x00000021;
+  export const GETFILEDATA = 0x00000060;
+
+  // 选项标志
+  export const FILEATTACHOPT = 0x00200000;
+  export const ENCRYPTOPT = 0x00400000;
+  export const UTF8OPT = 0x00800000;
+}
+```
+
+## 协议格式
+
+```
+标准格式: version:packet_id:sender_name:sender_host:msg_type:content[:ext_fields]
+示例: 1:123:Alice:alice-pc:32:Hello World
+```
+
+---
+
+# 5. FileSendRequest
+
+## 用途
+文件传输请求数据结构 (JSON 格式，用于 ProtocolMessage.content)
+
+## Rust 定义
+
+```rust
+// src-tauri/src/network/protocol.rs
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FileSendRequest {
+    /// 文件名
+    pub name: String,
+
+    /// 文件大小 (字节)
+    pub size: u64,
+
+    /// MD5 哈希 (十六进制字符串)
+    pub md5: String,
+}
+```
+
+## TypeScript 类型
+
+```typescript
+// src/types/file.ts
+export interface FileSendRequest {
+  name: string;
+  size: number;
+  md5: string;
+}
+```
+
+---
+
+# 6. FileSendResponse
+
+## 用途
+文件传输响应数据结构 (JSON 格式，用于 ProtocolMessage.content)
+
+## Rust 定义
+
+```rust
+// src-tauri/src/network/protocol.rs
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FileSendResponse {
+    /// true = 接受, false = 拒绝
+    pub accept: bool,
+
+    /// TCP 数据传输端口 (仅当 accept = true 时)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub port: Option<u16>,
+}
+```
+
+## TypeScript 类型
+
+```typescript
+// src/types/file.ts
+export interface FileSendResponse {
+  accept: boolean;
+  port?: number;
+}
+```
+
+---
+
+# 7. AppConfigDto
 
 ## 用途
 应用配置传输对象
@@ -289,7 +482,7 @@ export interface AppConfigDto {
 
 ---
 
-# 5. Tauri 事件 Payload 定义
+# 8. Tauri 事件 Payload 定义
 
 ## 节点状态变化事件
 
@@ -443,7 +636,7 @@ listen<TransferDto>('transfer://completed', (event) => {
 
 ---
 
-# 6. DTO 模块导出
+# 9. DTO 模块导出
 
 ## Rust 模块结构
 
@@ -476,7 +669,7 @@ async fn get_peers() -> Result<Vec<PeerDto>, String> {
 
 ---
 
-# 7. 转换规则总结
+# 10. 转换规则总结
 
 | Model 类型 | DTO 类型 | 转换规则 |
 |-----------|---------|---------|
@@ -489,7 +682,7 @@ async fn get_peers() -> Result<Vec<PeerDto>, String> {
 
 ---
 
-# 8. TypeScript 类型同步
+# 11. TypeScript 类型同步
 
 为了保持前后端类型一致，建议：
 

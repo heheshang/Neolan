@@ -448,11 +448,11 @@ src-tauri/src/
 │   ├── file_transfer/  ⏳ 文件传输
 │   ├── crypto/         ⏳ 加密模块
 │   └── group/          ⏳ 群组管理
-├── network/            ⏳ 网络通信
-│   ├── mod.rs
-│   ├── protocol.rs     ⏳ IPMsg 协议解析
-│   ├── udp.rs          ⏳ UDP 传输
-│   └── tcp.rs          ⏳ TCP 传输
+├── network/            🔄 阶段 0.4 部分完成
+│   ├── mod.rs          ✅ 已创建
+│   ├── protocol.rs     ✅ 已实现 (IPMsg 协议解析/序列化)
+│   ├── udp.rs          ⏳ 未创建 (UDP 传输)
+│   └── tcp.rs          ⏳ 未创建 (TCP 传输)
 ├── config/             ⏳ 配置管理
 │   ├── mod.rs
 │   └── app.rs          ⏳ 应用配置

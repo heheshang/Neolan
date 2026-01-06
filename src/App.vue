@@ -1,51 +1,24 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-
-const greetMsg = ref("");
-const name = ref("");
-
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
-}
+import { RouterView, RouterLink } from "vue-router";
 </script>
 
 <template>
-  <main class="container">
-    <h1>Welcome to Tauri + Vue</h1>
-
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
-    </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
-
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
-  </main>
+  <div class="app">
+    <nav class="navbar">
+      <div class="nav-brand">
+        <h2>NeoLan</h2>
+      </div>
+      <div class="nav-links">
+        <RouterLink to="/peers" class="nav-link">节点列表</RouterLink>
+        <RouterLink to="/settings" class="nav-link">设置</RouterLink>
+      </div>
+    </nav>
+    <main class="main-content">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
-<style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
-}
-
-</style>
 <style>
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
@@ -63,78 +36,62 @@ async function greet() {
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
+* {
   margin: 0;
-  padding-top: 10vh;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.app {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
+.navbar {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0 20px;
+  height: 60px;
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-a {
-  font-weight: 500;
+.nav-brand h2 {
+  font-size: 1.5rem;
+  color: #24c8db;
+  font-weight: 600;
+}
+
+.nav-links {
+  display: flex;
+  gap: 20px;
+}
+
+.nav-link {
+  text-decoration: none;
   color: #646cff;
-  text-decoration: inherit;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: background-color 0.2s, color 0.2s;
 }
 
-a:hover {
+.nav-link:hover {
+  background-color: #f0f0f0;
   color: #535bf2;
 }
 
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
+.nav-link.router-link-active {
   background-color: #e8e8e8;
+  color: #24c8db;
 }
 
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
+.main-content {
+  flex: 1;
+  padding: 20px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -143,18 +100,19 @@ button {
     background-color: #2f2f2f;
   }
 
-  a:hover {
+  .navbar {
+    background-color: #1f1f1f;
+    border-bottom-color: #3f3f3f;
+  }
+
+  .nav-link:hover {
+    background-color: #3f3f3f;
     color: #24c8db;
   }
 
-  input,
-  button {
-    color: #ffffff;
+  .nav-link.router-link-active {
     background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
+    color: #24c8db;
   }
 }
-
 </style>

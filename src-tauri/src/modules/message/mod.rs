@@ -1,1 +1,7 @@
-// Message handling module - protocol, encryption, routing
+// Message handling module
+//
+// This module handles all message-related functionality:
+// - Protocol parsing and serialization
+// - Message encryption/decryption
+// - Message routing and delivery
+

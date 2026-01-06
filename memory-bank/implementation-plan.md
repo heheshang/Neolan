@@ -591,26 +591,49 @@ impl MigratorTrait for Migrator {
 ### 指令
 1. 在 `src-tauri/src/network/` 创建 `protocol.rs`
 
-2. 定义消息类型常量：
+2. 定义消息类型常量（基于 IPMsg 协议标准）：
 
 ```rust
 // src-tauri/src/network/protocol.rs
 pub mod msg_type {
-    pub const STATUS_ONLINE: u32 = 0x00000001;
-    pub const STATUS_OFFLINE: u32 = 0x00000002;
-    pub const MSG_SEND: u32 = 0x00000004;
-    pub const MSG_RECEIPT: u32 = 0x00000008;
-    pub const BR_ENTRY: u32 = 0x00000010;
-    pub const FILE_SEND_REQ: u32 = 0x00000020;
-    pub const FILE_SEND_RSP: u32 = 0x00000040;
-    pub const STATUS_HEARTBEAT: u32 = 0x00000080;
-    pub const FILE_DATA: u32 = 0x00000100;
-    pub const FILE_COMPLETE: u32 = 0x00000200;
-    pub const FILE_PAUSE: u32 = 0x00000400;
-    pub const FILE_RESUME: u32 = 0x00000800;
-    pub const GROUP_CREATE: u32 = 0x00001000;
-    pub const GROUP_INVITE: u32 = 0x00002000;
-    pub const GROUP_MSG: u32 = 0x00004000;
+    // 协议常量
+    pub const IPMSG_VERSION: u16 = 0x0001;        // 协议版本
+    pub const IPMSG_DEFAULT_PORT: u16 = 0x0979;  // 2425
+
+    // 消息类型 (mode - 低 8 位)
+    pub const IPMSG_NOOPERATION: u32    = 0x00000000; // 无操作
+    pub const IPMSG_BR_ENTRY: u32       = 0x00000001; // 广播上线
+    pub const IPMSG_BR_EXIT: u32        = 0x00000002; // 广播下线
+    pub const IPMSG_ANSENTRY: u32       = 0x00000003; // 对 BR_ENTRY 的应答
+    pub const IPMSG_BR_ABSENCE: u32     = 0x00000004; // 广播缺席
+    pub const IPMSG_BR_ISGETLIST: u32   = 0x00000010; // 请求列表
+    pub const IPMSG_OKGETLIST: u32      = 0x00000011; // 同意发送列表
+    pub const IPMSG_GETLIST: u32        = 0x00000012; // 请求列表
+    pub const IPMSG_ANSLIST: u32        = 0x00000013; // 返回列表
+    pub const IPMSG_SENDMSG: u32        = 0x00000020; // 发送消息
+    pub const IPMSG_RECVMSG: u32        = 0x00000021; // 接收确认
+    pub const IPMSG_READMSG: u32        = 0x00000030; // 消息已读
+    pub const IPMSG_DELMSG: u32         = 0x00000031; // 删除消息
+    pub const IPMSG_GETFILEDATA: u32    = 0x00000060; // 请求文件数据
+    pub const IPMSG_RELEASEFILES: u32   = 0x00000061; // 释放文件资源
+
+    // 选项标志 (options - 高 24 位)
+    pub const IPMSG_FILEATTACHOPT: u32  = 0x00200000; // 文件附加标志
+    pub const IPMSG_ENCRYPTOPT: u32     = 0x00400000; // 加密标志
+    pub const IPMSG_UTF8OPT: u32        = 0x00800000; // UTF-8 编码标志
+    pub const IPMSG_SENDCHECKOPT: u32   = 0x00000100; // 发送确认
+    pub const IPMSG_BROADCASTOPT: u32   = 0x00000400; // 广播发送
+
+    // 辅助函数
+    pub const fn get_mode(command: u32) -> u8 {
+        (command & 0x000000ff) as u8
+    }
+    pub const fn get_opt(command: u32) -> u32 {
+        command & 0xffffff00
+    }
+    pub const fn has_opt(command: u32, flag: u32) -> bool {
+        (get_opt(command) & flag) != 0
+    }
 }
 ```
 
@@ -703,9 +726,9 @@ content: r#"{"accept":false}"#
 2. 实现 `PeerDiscovery` 结构体，持有 `UdpTransport`
 3. 实现以下方法：
    - `new(udp: UdpTransport) -> Self`
-   - `announce_online() -> Result<()>` - 发送上线广播（MSG_ONLINE）
+   - `announce_online() -> Result<()>` - 发送上线广播（IPMSG_BR_ENTRY）
    - `listen_incoming<F>(callback: F) where F: Fn(ProtocolMessage, SocketAddr)` - 监听并处理入站消息
-4. 上线广播格式：使用协议解析器封装 STATUS_ONLINE 消息
+4. 上线广播格式：使用协议解析器封装 IPMSG_BR_ENTRY 消息
 
 ### 验证测试
 1. 启动两个应用实例
@@ -839,7 +862,7 @@ impl From<&PeerNode> for PeerModelActive {
 1. 在 `src-tauri/src/modules/peer/` 创建 `heartbeat.rs`
 2. 实现 `HeartbeatMonitor` 结构体
 3. 实现以下功能：
-   - 每 30 秒发送一次心跳包（STATUS_HEARTBEAT）
+   - 每 30 秒发送一次心跳包（IPMSG_BR_ABSENCE 或定期发送 IPMSG_ANSENTRY）
    - 接收心跳包时更新节点的 last_seen 时间
    - 检查超过 60 秒未收到心跳的节点，标记为离线
 4. 使用 tokio 的 `Interval` 实现定时器
@@ -1080,7 +1103,7 @@ impl From<&PeerNode> for PeerModelActive {
 2. 实现 `MessageHandler` 结构体
 3. 实现 `send_text_message(&self, target_ip: IpAddr, content: &str) -> Result<()>`
    - 使用 ProtocolMessage 封装消息
-   - 消息类型为 MSG_SEND (0x00000004)
+   - 消息类型为 IPMSG_SENDMSG (0x00000020)
    - 通过 UDP 发送到目标节点
 
 ### 验证测试
@@ -1102,10 +1125,10 @@ impl From<&PeerNode> for PeerModelActive {
 1. 扩展 `PeerDiscovery` 的 `listen_incoming` 功能
 2. 解析接收到的消息
 3. 根据 msg_type 分发到不同处理器：
-   - MSG_SEND -> 调用 MessageHandler
-   - STATUS_ONLINE -> PeerManager
-   - STATUS_HEARTBEAT -> HeartbeatMonitor
-4. 接收到 MSG_SEND 后存储到数据库
+   - IPMSG_SENDMSG -> 调用 MessageHandler
+   - IPMSG_BR_ENTRY -> PeerManager
+   - IPMSG_ANSENTRY -> HeartbeatMonitor
+4. 接收到 IPMSG_SENDMSG 后存储到数据库
 
 ### 验证测试
 1. 发送消息，确认接收方存入数据库
@@ -1195,7 +1218,7 @@ impl From<&PeerNode> for PeerModelActive {
 2. 实现 `FileTransferManager`
 3. 实现 `send_request(path: &Path, target: IpAddr) -> Result<Uuid>`
    - 计算文件 MD5 和大小
-   - 创建 FILE_SEND_REQ 消息（包含文件名、大小、MD5）
+   - 创建 IPMSG_GETFILEDATA 消息（包含文件名、大小、MD5）
    - 通过 UDP 发送
    - 创建传输任务，状态为 Pending
 
@@ -1216,10 +1239,10 @@ impl From<&PeerNode> for PeerModelActive {
 
 ### 指令
 1. 实现接收方处理逻辑
-2. 收到 FILE_SEND_REQ 后：
+2. 收到 IPMSG_GETFILEDATA 后：
    - 解析文件信息
    - 询问用户是否接受（通过 Tauri 事件）
-   - 如果接受，分配 TCP 端口，发送 FILE_SEND_RSP
+   - 如果接受，分配 TCP 端口，发送 IPMSG_RELEASEFILES 响应
 3. 如果拒绝，发送拒绝响应
 
 ### 验证测试
