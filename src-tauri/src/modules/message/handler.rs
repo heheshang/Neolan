@@ -6,6 +6,7 @@
 // - Receives and routes incoming messages by type
 // - Stores text messages to database
 // - Manages packet ID generation for message tracking
+// - Emits Tauri events for received messages
 
 use crate::config::AppConfig;
 use crate::modules::message::types::{Message, MessageType};
@@ -13,6 +14,8 @@ use crate::modules::peer::types::PeerInfo;
 use crate::network::{serialize_message, msg_type, ProtocolMessage};
 use crate::network::udp::UdpTransport;
 use crate::storage::message_repo::{MessageRepository, MessageModel};
+use crate::state::AppState;
+use crate::state::app_state::TauriEvent;
 use crate::{NeoLanError, Result};
 use chrono::Utc;
 use std::net::{IpAddr, SocketAddr};
@@ -38,6 +41,9 @@ pub struct MessageHandler {
 
     /// Message repository for database storage (optional)
     message_repo: Option<MessageRepository>,
+
+    /// Application state for emitting events
+    app_state: Option<Arc<AppState>>,
 }
 
 impl MessageHandler {
@@ -66,6 +72,7 @@ impl MessageHandler {
             config,
             packet_id_counter: Arc::new(AtomicU64::new(1)),
             message_repo: None,
+            app_state: None,
         }
     }
 
@@ -84,7 +91,17 @@ impl MessageHandler {
             config,
             packet_id_counter: Arc::new(AtomicU64::new(1)),
             message_repo: Some(message_repo),
+            app_state: None,
         }
+    }
+
+    /// Set the application state for emitting events
+    ///
+    /// # Arguments
+    /// * `app_state` - Application state reference
+    pub fn with_app_state(mut self, app_state: Arc<AppState>) -> Self {
+        self.app_state = Some(app_state);
+        self
     }
 
     /// Send a text message to a target peer
@@ -366,6 +383,25 @@ impl MessageHandler {
             tracing::debug!("Message stored to database: msg_id={}", proto_msg.packet_id);
         } else {
             tracing::warn!("Message repository not available - message not stored");
+        }
+
+        // Emit Tauri event for real-time frontend update
+        if let Some(ref app_state) = self.app_state {
+            let now = Utc::now();
+            app_state.emit_tauri_event(TauriEvent::MessageReceived {
+                msg_id: proto_msg.packet_id.to_string(),
+                sender_ip: sender_ip.to_string(),
+                sender_name: proto_msg.sender_name.clone(),
+                receiver_ip: local_ip.to_string(),
+                content: proto_msg.content.clone(),
+                msg_type: proto_msg.msg_type as i32,
+                is_encrypted: msg_type::has_opt(proto_msg.msg_type, msg_type::IPMSG_ENCRYPTOPT),
+                is_offline: false,
+                sent_at: now.timestamp_millis(),
+                received_at: Some(now.timestamp_millis()),
+                created_at: now.timestamp_millis(),
+            });
+            tracing::debug!("Emitted message-received event for msg_id={}", proto_msg.packet_id);
         }
 
         Ok(())

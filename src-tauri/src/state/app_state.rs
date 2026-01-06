@@ -6,7 +6,53 @@ use crate::config::AppConfig;
 use crate::modules::message::MessageHandler;
 use crate::modules::peer::{PeerManager, PeerNode};
 use crate::Result;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc;
+
+/// Tauri event payload - serializable events that can be emitted to frontend
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "event", content = "data")]
+pub enum TauriEvent {
+    /// Message received from peer
+    MessageReceived {
+        #[serde(rename = "msgId")]
+        msg_id: String,
+        #[serde(rename = "senderIp")]
+        sender_ip: String,
+        #[serde(rename = "senderName")]
+        sender_name: String,
+        #[serde(rename = "receiverIp")]
+        receiver_ip: String,
+        content: String,
+        #[serde(rename = "msgType")]
+        msg_type: i32,
+        #[serde(rename = "isEncrypted")]
+        is_encrypted: bool,
+        #[serde(rename = "isOffline")]
+        is_offline: bool,
+        #[serde(rename = "sentAt")]
+        sent_at: i64,
+        #[serde(rename = "receivedAt")]
+        received_at: Option<i64>,
+        #[serde(rename = "createdAt")]
+        created_at: i64,
+    },
+
+    /// Peer came online
+    PeerOnline {
+        #[serde(rename = "peerIp")]
+        peer_ip: String,
+        #[serde(rename = "username")]
+        username: Option<String>,
+    },
+
+    /// Peer went offline
+    PeerOffline {
+        #[serde(rename = "peerIp")]
+        peer_ip: String,
+    },
+}
 
 /// Application state
 ///
@@ -25,6 +71,9 @@ pub struct AppState {
 
     /// Event emitter for state changes
     event_emitter: Arc<Mutex<super::events::AppEventEmitter>>,
+
+    /// Tauri event sender for forwarding events to main thread
+    tauri_event_sender: Arc<Mutex<Option<mpsc::Sender<TauriEvent>>>>,
 }
 
 impl AppState {
@@ -35,6 +84,23 @@ impl AppState {
             message_handler: Arc::new(Mutex::new(None)),
             config: Arc::new(Mutex::new(config)),
             event_emitter: Arc::new(Mutex::new(super::events::AppEventEmitter::new())),
+            tauri_event_sender: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    /// Set the Tauri event sender
+    ///
+    /// This should be called once during application startup after creating the channel.
+    pub fn set_event_sender(&self, sender: mpsc::Sender<TauriEvent>) {
+        *self.tauri_event_sender.lock().unwrap() = Some(sender);
+    }
+
+    /// Emit a Tauri event to the frontend
+    ///
+    /// This method sends an event through the channel to be forwarded to the main thread.
+    pub fn emit_tauri_event(&self, event: TauriEvent) {
+        if let Some(sender) = self.tauri_event_sender.lock().unwrap().as_ref() {
+            let _ = sender.send(event);
         }
     }
 

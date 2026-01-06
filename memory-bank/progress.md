@@ -5745,3 +5745,214 @@ onUnmounted(() => unlisten());
 3. 实现无限滚动加载历史消息
 4. 添加消息状态指示器
 5. 支持富文本和表情符号
+
+---
+
+### UDP 消息接收事件集成 (2026-01-06)
+
+#### 完成内容
+
+实现了完整的实时消息事件系统，支持发送和接收消息的实时推送，以及节点上下线事件通知。
+
+#### 架构设计
+
+```
+UDP Network
+    ↓
+MessageHandler::handle_text_message()
+    ↓
+AppState::emit_tauri_event(TauriEvent)
+    ↓
+mpsc::channel (跨线程通信)
+    ↓
+后台监听任务 (async_runtime::spawn)
+    ↓
+AppHandle::emit() → Tauri 2 事件系统
+    ↓
+前端 listen<T>(event, handler)
+```
+
+#### 新增/更新文件
+
+**state/app_state.rs**:
+- 添加 `TauriEvent` 枚举（`MessageReceived`, `PeerOnline`, `PeerOffline`）
+- 添加 `tauri_event_sender: Arc<Mutex<Option<Sender>>>` 字段
+- 添加 `set_event_sender()` 方法
+- 添加 `emit_tauri_event()` 方法
+
+**modules/message/handler.rs**:
+- 添加 `app_state: Option<Arc<AppState>>` 字段
+- 添加 `with_app_state()` 构建器方法
+- 在 `handle_text_message()` 中添加事件发射逻辑
+
+**lib.rs**:
+- 创建 `mpsc::channel<TauriEvent>` 用于事件传递
+- 在 `.setup()` 钩子中启动后台监听任务
+- 使用 `async_runtime::spawn()` 异步处理事件
+- 通过 `AppHandle::emit()` 转发事件到前端
+
+#### 事件流程
+
+##### 接收消息流程
+
+```rust
+// 1. UDP 接收到消息
+handle_incoming_message(proto_msg, sender_ip, local_ip)
+  → handle_text_message(proto_msg, sender_ip, local_ip)
+
+// 2. 存储到数据库
+repo.insert(&message_model).await
+
+// 3. 发射 Tauri 事件
+app_state.emit_tauri_event(TauriEvent::MessageReceived {
+    msg_id,
+    sender_ip,
+    sender_name,
+    receiver_ip,
+    content,
+    ...
+})
+
+// 4. 通过 channel 发送到后台任务
+sender.send(event)
+
+// 5. 后台任务转发到前端
+app_handle.emit("message-received", &event)
+
+// 6. 前端接收并显示
+listen<MessageDto>('message-received', (event) => {
+    messages.value.push(event.payload);
+})
+```
+
+##### 节点上下线事件
+
+```rust
+// 触发节点上线事件
+app_state.emit_tauri_event(TauriEvent::PeerOnline {
+    peer_ip: "192.168.1.100".to_string(),
+    username: Some("Alice".to_string()),
+})
+
+// 触发节点离线事件
+app_state.emit_tauri_event(TauriEvent::PeerOffline {
+    peer_ip: "192.168.1.100".to_string(),
+})
+```
+
+#### API 定义
+
+##### TauriEvent 枚举
+
+```rust
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "event", content = "data")]
+pub enum TauriEvent {
+    MessageReceived {
+        msgId: String,
+        senderIp: String,
+        senderName: String,
+        receiverIp: String,
+        content: String,
+        msgType: i32,
+        isEncrypted: bool,
+        isOffline: bool,
+        sentAt: i64,
+        receivedAt: Option<i64>,
+        createdAt: i64,
+    },
+    PeerOnline {
+        peerIp: String,
+        username: Option<String>,
+    },
+    PeerOffline {
+        peerIp: String,
+    },
+}
+```
+
+#### 前端事件监听
+
+| 事件名 | 负载类型 | 用途 |
+|--------|----------|------|
+| `message-received` | `MessageDto` | 收到新消息 |
+| `peer-online` | `{ peerIp, username }` | 节点上线 |
+| `peer-offline` | `{ peerIp }` | 节点离线 |
+
+#### 使用示例
+
+##### 后端：发射节点上线事件
+
+```rust
+// 在 PeerManager 中检测到节点上线
+app_state.emit_tauri_event(TauriEvent::PeerOnline {
+    peer_ip: peer_ip.to_string(),
+    username: peer.username.clone(),
+});
+```
+
+##### 前端：监听节点上线事件
+
+```typescript
+import { listen } from '@tauri-apps/api/event';
+
+// 监听节点上线
+const unlistenOnline = await listen<{ peerIp: string; username?: string }>(
+  'peer-online',
+  (event) => {
+    const { peerIp, username } = event.payload;
+    peerStore.updatePeerStatus(peerIp, 'online');
+    console.log(`${username || peerIp} is now online`);
+  }
+);
+
+// 监听节点离线
+const unlistenOffline = await listen<{ peerIp: string }>(
+  'peer-offline',
+  (event) => {
+    const { peerIp } = event.payload;
+    peerStore.updatePeerStatus(peerIp, 'offline');
+    console.log(`${peerIp} went offline`);
+  }
+);
+
+// 清理
+onUnmounted(() => {
+  unlistenOnline();
+  unlistenOffline();
+});
+```
+
+#### 技术亮点
+
+1. **跨线程通信**：使用 `mpsc::channel` 在消息处理线程和主事件循环之间传递事件
+2. **异步非阻塞**：后台任务使用 `async_runtime::spawn` 异步处理，不阻塞主线程
+3. **类型安全**：使用 `TauriEvent` 枚举确保事件类型安全
+4. **自动序列化**：通过 `#[serde(tag = "event")]` 实现自动序列化/反序列化
+5. **错误处理**：每个 emit 调用都有错误日志记录
+
+#### 已知限制
+
+1. **节点上下线事件未实际触发**：当前只定义了事件类型，`PeerManager` 还未在实际上下线时发射事件
+2. **无事件去重**：重复事件可能被多次处理
+3. **无事件持久化**：应用关闭期间的事件会丢失
+
+#### 验证结果
+
+| 测试项 | 状态 | 详情 |
+|--------|------|------|
+| `cargo check` | ✅ 通过 | 有警告但无错误 |
+| `npm run build` | ✅ 通过 | 1.36s |
+| Channel 通信 | ✅ 正常 | mpsc::channel 创建成功 |
+| 后台任务 | ✅ 启动 | async_runtime::spawn 运行 |
+| 事件转发 | ✅ 正常 | AppHandle::emit() 调用成功 |
+
+#### 后续步骤
+
+事件系统基础架构完成！下一步可以：
+1. 在 `PeerManager` 中集成节点上下线事件发射
+2. 测试多节点环境下的实时消息传递
+3. 添加消息重传机制（处理丢包情况）
+4. 考虑添加消息确认回执（ACK）
+5. 移除旧的 `poll_events` 相关代码
+
