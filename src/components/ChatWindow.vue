@@ -52,7 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { listen } from '@tauri-apps/api/event';
 import type { PeerDto, MessageDto } from '@/stores';
 import * as api from '../api';
 
@@ -72,6 +73,9 @@ const loading = ref(false);
 const sending = ref(false);
 const error = ref<string | null>(null);
 const messagesContainer = ref<HTMLElement | null>(null);
+
+// Event listener cleanup function
+let unlistenMessage: (() => void) | null = null;
 
 // Computed
 const isSentMessage = (msg: MessageDto) => msg.senderIp === props.peer.ip;
@@ -120,8 +124,7 @@ const sendMessage = async () => {
   try {
     await api.sendMessage(props.peer.ip, content);
     newMessage.value = '';
-    // Reload messages to get the sent message
-    await loadMessages();
+    // Message will be received via event, no need to reload
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
     console.error('Failed to send message:', err);
@@ -130,14 +133,46 @@ const sendMessage = async () => {
   }
 };
 
+// Setup event listener for real-time messages
+const setupEventListener = async () => {
+  try {
+    unlistenMessage = await listen<MessageDto>('message-received', (event) => {
+      const msg = event.payload;
+      // Only add message if it's from the current peer
+      if (msg.senderIp === props.peer.ip || msg.receiverIp === props.peer.ip) {
+        messages.value.push(msg);
+        scrollToBottom();
+      }
+    });
+  } catch (err) {
+    console.error('Failed to setup event listener:', err);
+  }
+};
+
 // Lifecycle
-onMounted(() => {
-  loadMessages();
+onMounted(async () => {
+  await loadMessages();
+  await setupEventListener();
+});
+
+onUnmounted(() => {
+  // Clean up event listener
+  if (unlistenMessage) {
+    unlistenMessage();
+    unlistenMessage = null;
+  }
 });
 
 // Watch for peer changes
-watch(() => props.peer.ip, () => {
-  loadMessages();
+watch(() => props.peer.ip, async () => {
+  // Clean up old listener
+  if (unlistenMessage) {
+    unlistenMessage();
+    unlistenMessage = null;
+  }
+  // Load new messages and setup new listener
+  await loadMessages();
+  await setupEventListener();
 });
 </script>
 

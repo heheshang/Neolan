@@ -7,6 +7,7 @@ use crate::storage::entities::messages;
 use crate::{NeoLanError, Result};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
+use tauri::Emitter;
 
 /// Message data transfer object for frontend
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -46,11 +47,47 @@ impl From<messages::Model> for MessageDto {
     }
 }
 
+/// Event payload for message-received event
+#[derive(Clone, serde::Serialize)]
+pub struct MessageReceivedEvent {
+    #[serde(rename = "msgId")]
+    pub msg_id: String,
+    #[serde(rename = "senderIp")]
+    pub sender_ip: String,
+    #[serde(rename = "senderName")]
+    pub sender_name: String,
+    #[serde(rename = "receiverIp")]
+    pub receiver_ip: String,
+    pub content: String,
+    #[serde(rename = "msgType")]
+    pub msg_type: i32,
+    #[serde(rename = "isEncrypted")]
+    pub is_encrypted: bool,
+    #[serde(rename = "isOffline")]
+    pub is_offline: bool,
+    #[serde(rename = "sentAt")]
+    pub sent_at: i64,
+    #[serde(rename = "receivedAt")]
+    pub received_at: Option<i64>,
+    #[serde(rename = "createdAt")]
+    pub created_at: i64,
+}
+
+/// Event payload for message-sent event
+#[derive(Clone, serde::Serialize)]
+pub struct MessageSentEvent {
+    #[serde(rename = "msgId")]
+    pub msg_id: String,
+    #[serde(rename = "receiverIp")]
+    pub receiver_ip: String,
+}
+
 /// Send a text message to a peer
 ///
 /// # Arguments
 /// * `peer_ip` - IP address of the target peer
 /// * `content` - Message content to send
+/// * `app` - Tauri app handle for emitting events
 /// * `state` - Application state
 ///
 /// # Returns
@@ -60,6 +97,7 @@ impl From<messages::Model> for MessageDto {
 pub async fn send_message(
     peer_ip: String,
     content: String,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String> {
     tracing::info!("send_message called: peer_ip={}, content_len={}", peer_ip, content.len());
@@ -76,8 +114,40 @@ pub async fn send_message(
         .parse()
         .map_err(|e| NeoLanError::Validation(format!("Invalid IP address: {}", e)))?;
 
+    // Get config for local IP
+    let config = state.get_config();
+    let local_ip = config.bind_ip.clone();
+
     // Send message through state
     let msg_id = state.send_message(target_ip, &content)?;
+
+    // Emit message-sent event
+    let sent_event = MessageSentEvent {
+        msg_id: msg_id.clone(),
+        receiver_ip: peer_ip.clone(),
+    };
+    if let Err(e) = app.emit("message-sent", sent_event) {
+        tracing::error!("Failed to emit message-sent event: {}", e);
+    }
+
+    // Also emit as message-received for sender's chat window
+    // This ensures the sender sees their own message immediately
+    let received_event = MessageReceivedEvent {
+        msg_id: msg_id.clone(),
+        sender_ip: local_ip.clone(),
+        sender_name: config.username.clone(),
+        receiver_ip: peer_ip.clone(),
+        content: content.clone(),
+        msg_type: 0x20, // IPMSG_SENDMSG
+        is_encrypted: false,
+        is_offline: false,
+        sent_at: chrono::Utc::now().timestamp_millis(),
+        received_at: None,
+        created_at: chrono::Utc::now().timestamp_millis(),
+    };
+    if let Err(e) = app.emit("message-received", received_event) {
+        tracing::error!("Failed to emit message-received event: {}", e);
+    }
 
     tracing::info!("Message sent successfully: msg_id={}", msg_id);
     Ok(msg_id)
@@ -88,9 +158,10 @@ pub async fn send_message(
 pub async fn send_text_message(
     peer_ip: String,
     content: String,
+    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String> {
-    send_message(peer_ip, content, state).await
+    send_message(peer_ip, content, app, state).await
 }
 
 /// Get messages with a specific peer

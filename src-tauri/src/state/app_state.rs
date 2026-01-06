@@ -7,7 +7,6 @@ use crate::modules::message::MessageHandler;
 use crate::modules::peer::{PeerManager, PeerNode};
 use crate::Result;
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
 
 /// Application state
 ///
@@ -158,9 +157,6 @@ impl AppState {
 
             // Get the packet ID that was used
             let msg_id = handler.packet_id_counter().to_string();
-
-            // Emit message sent event
-            self.emit_event(super::events::AppEvent::message_sent(msg_id.clone(), target_ip));
 
             Ok(msg_id)
         } else {

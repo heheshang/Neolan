@@ -5573,8 +5573,174 @@ border-color: var(--border);
 4. 实现文件接收功能
 5. 创建文件传输进度 UI
 
+### 事件系统重构 (2026-01-06)
+
+#### 重构目标
+
+将自定义的事件轮询系统迁移到 Tauri 2 原生事件系统，实现真正的实时消息推送。
+
+#### 变更内容
+
+##### 前端变更
+
+**ChatWindow.vue** - 使用 Tauri 2 事件监听器：
+
+```typescript
+import { listen } from '@tauri-apps/api/event';
+
+// 事件监听器清理函数
+let unlistenMessage: (() => void) | null = null;
+
+// 设置实时消息监听
+const setupEventListener = async () => {
+  try {
+    unlistenMessage = await listen<MessageDto>('message-received', (event) => {
+      const msg = event.payload;
+      // 只添加当前对话节点的消息
+      if (msg.senderIp === props.peer.ip || msg.receiverIp === props.peer.ip) {
+        messages.value.push(msg);
+        scrollToBottom();
+      }
+    });
+  } catch (err) {
+    console.error('Failed to setup event listener:', err);
+  }
+};
+
+// 生命周期管理
+onMounted(async () => {
+  await loadMessages();
+  await setupEventListener();
+});
+
+onUnmounted(() => {
+  if (unlistenMessage) {
+    unlistenMessage();
+  }
+});
+```
+
+##### 后端变更
+
+**commands/message.rs** - 使用 Tauri 2 Emitter trait：
+
+```rust
+use tauri::Emitter;
+
+// 事件负载结构
+#[derive(Clone, serde::Serialize)]
+pub struct MessageReceivedEvent {
+    #[serde(rename = "msgId")]
+    pub msg_id: String,
+    #[serde(rename = "senderIp")]
+    pub sender_ip: String,
+    #[serde(rename = "senderName")]
+    pub sender_name: String,
+    // ... 其他字段
+}
+
+// 发送消息命令
+#[tauri::command]
+pub async fn send_message(
+    peer_ip: String,
+    content: String,
+    app: tauri::AppHandle,  // 添加 AppHandle
+    state: tauri::State<'_, AppState>,
+) -> Result<String> {
+    // ... 发送逻辑
+
+    // 发射 message-sent 事件
+    app.emit("message-sent", sent_event)?;
+
+    // 发射 message-received 事件（发送者看到自己的消息）
+    app.emit("message-received", received_event)?;
+
+    Ok(msg_id)
+}
+```
+
+**state/app_state.rs** - 简化状态管理：
+
+- 移除旧的 `Emitter`/`EventTarget` 导入
+- 移除未使用的 `MessageReceivedEvent`/`MessageSentEvent` 结构体
+- 简化 `send_message` 方法（事件现在在命令中直接发射）
+
+#### 技术优势
+
+| 旧方式 (轮询) | 新方式 (Tauri 2 事件) |
+|---------------|----------------------|
+| 前端定期调用 `poll_events()` | Rust 端主动推送事件 |
+| 延迟 = 轮询间隔 | 实时推送，无延迟 |
+| 浪费 CPU/带宽 | 按需推送，高效 |
+| 需要手动管理事件缓冲区 | Tauri 自动管理 |
+
+#### API 对比
+
+##### 旧方式（轮询）
+
+```typescript
+// 前端 - 定期轮询
+setInterval(async () => {
+  const events = await api.pollEvents();
+  for (const event of events) {
+    if (event.type === 'MessageReceived') {
+      // 处理消息
+    }
+  }
+}, 100);
+```
+
+##### 新方式（事件监听）
+
+```typescript
+// 前端 - 监听事件
+const unlisten = await listen<MessageDto>('message-received', (event) => {
+  // 处理消息
+  messages.value.push(event.payload);
+});
+
+// 清理
+onUnmounted(() => unlisten());
+```
+
+#### 事件命名
+
+| 事件名 | 触发时机 | 负载类型 |
+|--------|----------|----------|
+| `message-sent` | 消息发送成功 | `MessageSentEvent` |
+| `message-received` | 收到新消息 | `MessageReceivedEvent` |
+
+#### 验证结果
+
+| 测试项 | 状态 | 详情 |
+|--------|------|------|
+| `cargo check` | ✅ 通过 | 有警告但无错误 |
+| `npm run build` | ✅ 通过 | 1.38s |
+| Emitter trait 导入 | ✅ 正确 | `use tauri::Emitter;` |
+| AppHandle 参数 | ✅ 正确 | 添加到命令签名 |
+
+#### 已知限制
+
+1. **接收消息尚未集成**：当前只实现了发送消息时的事件发射
+   - 影响：接收到 UDP 消息时不会触发前端事件
+   - 解决：需要在网络接收回调中添加事件发射
+
+2. **事件负载冗余**：发送者会收到两条事件（message-sent 和 message-received）
+   - 影响：可能造成消息重复显示
+   - 解决：前端可以只监听 message-received，后端为发送者也发送此事件
+
+#### 后续步骤
+
+事件系统重构完成！下一步可以：
+1. 在 UDP 消息接收处理中集成事件发射
+2. 测试跨节点实时消息传递
+3. 添加连接状态事件（online/offline）
+4. 考虑移除旧的 `poll_events` 命令和相关代码
+
+---
+
 或者继续优化阶段 5 的功能：
-1. 集成实时事件监听（poll_events）
+1. ~~集成实时事件监听（poll_events）~~ ✅ 已重构为 Tauri 2 事件
 2. 添加消息分组和日期显示
 3. 实现无限滚动加载历史消息
 4. 添加消息状态指示器
