@@ -4,6 +4,7 @@
 // - Maintaining the peer list (in-memory HashMap)
 // - Processing discovery messages
 // - Managing peer state transitions
+// - Routing text messages to MessageHandler
 
 use crate::{network::ProtocolMessage, Result};
 use crate::modules::peer::{types::*, discovery::PeerDiscovery};
@@ -12,15 +13,26 @@ use std::io::{self, Error as IoError, ErrorKind};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex, PoisonError};
 use tracing::{info, warn, debug};
+use std::sync::mpsc::Sender;
 
 /// Convert lock poison error to io error
 fn lock_error<T>(_: PoisonError<T>) -> io::Error {
     IoError::new(ErrorKind::Other, "Mutex lock poisoned")
 }
 
+/// Message routing request
+#[derive(Clone, Debug)]
+pub struct MessageRouteRequest {
+    /// Protocol message
+    pub message: ProtocolMessage,
+    /// Sender address
+    pub sender: SocketAddr,
+}
+
 /// Peer manager
 ///
 /// Manages the in-memory peer list and handles peer discovery events.
+#[derive(Clone)]
 pub struct PeerManager {
     /// Peer discovery service
     discovery: PeerDiscovery,
@@ -30,6 +42,9 @@ pub struct PeerManager {
 
     /// Whether the manager is running
     running: Arc<Mutex<bool>>,
+
+    /// Channel sender for routing text messages to MessageHandler
+    message_tx: Arc<Mutex<Option<Sender<MessageRouteRequest>>>>,
 }
 
 impl PeerManager {
@@ -47,7 +62,19 @@ impl PeerManager {
             discovery,
             peers: Arc::new(Mutex::new(HashMap::new())),
             running: Arc::new(Mutex::new(false)),
+            message_tx: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Set the message handler channel
+    ///
+    /// This allows the PeerManager to route text messages to the MessageHandler.
+    ///
+    /// # Arguments
+    /// * `tx` - Channel sender for message routing
+    pub fn set_message_handler_channel(&self, tx: Sender<MessageRouteRequest>) {
+        *self.message_tx.lock().unwrap() = Some(tx);
+        info!("Message handler channel set in PeerManager");
     }
 
     /// Start the peer manager
@@ -82,6 +109,7 @@ impl PeerManager {
         // Start listening for incoming messages (blocking)
         let peers = Arc::clone(&self.peers);
         let running = Arc::clone(&self.running);
+        let message_tx = Arc::clone(&self.message_tx);
 
         self.discovery.listen_incoming(move |msg, sender| {
             // Check if still running
@@ -95,7 +123,7 @@ impl PeerManager {
             }
 
             // Handle the message
-            if let Err(e) = Self::handle_message(&peers, msg, sender) {
+            if let Err(e) = Self::handle_message(&peers, msg, sender, &message_tx) {
                 warn!("Failed to handle message: {:?}", e);
             }
         })?;
@@ -116,12 +144,16 @@ impl PeerManager {
         peers: &Arc<Mutex<HashMap<IpAddr, PeerNode>>>,
         msg: ProtocolMessage,
         sender: SocketAddr,
+        message_tx: &Arc<Mutex<Option<Sender<MessageRouteRequest>>>>,
     ) -> Result<()> {
         let ip = sender.ip();
 
         debug!("Received message from {}: type={}", ip, msg.msg_type);
 
-        match msg.msg_type {
+        // Extract base mode (low 8 bits) to handle messages with options
+        let mode = crate::network::msg_type::get_mode(msg.msg_type);
+
+        match mode as u32 {
             // IPMSG_BR_ENTRY: Peer is online / broadcasting presence
             crate::network::msg_type::IPMSG_BR_ENTRY => {
                 Self::handle_online_msg(peers, msg, sender)?;
@@ -134,9 +166,22 @@ impl PeerManager {
             crate::network::msg_type::IPMSG_ANSENTRY => {
                 Self::handle_online_msg(peers, msg, sender)?;
             }
+            // IPMSG_SENDMSG: Text message - route to MessageHandler
+            crate::network::msg_type::IPMSG_SENDMSG => {
+                debug!("Routing text message to MessageHandler");
+                if let Some(ref tx) = *message_tx.lock().unwrap() {
+                    let _ = tx.send(MessageRouteRequest {
+                        message: msg,
+                        sender,
+                    });
+                } else {
+                    warn!("MessageHandler channel not set - text message not routed");
+                }
+            }
             _ => {
-                // Other message types (MSG_SEND, FILE_SEND_REQ, etc.) are handled elsewhere
-                debug!("Ignoring message type: {}", msg.msg_type);
+                // Other message types (FILE_SEND_REQ, etc.)
+                debug!("Ignoring message type: {} (mode: {}, options: 0x{:06x})",
+                    msg.msg_type, mode, crate::network::msg_type::get_opt(msg.msg_type));
             }
         }
 

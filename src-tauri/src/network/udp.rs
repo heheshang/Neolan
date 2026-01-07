@@ -9,7 +9,7 @@ use crate::{NeoLanError, Result};
 use std::net::{SocketAddr, UdpSocket};
 
 /// Default UDP port for IPMsg protocol
-pub const DEFAULT_UDP_PORT: u16 = 2425;
+pub const DEFAULT_UDP_PORT: u16 = 2421;
 
 /// Broadcast address for LAN
 const BROADCAST_ADDR: &str = "255.255.255.255";

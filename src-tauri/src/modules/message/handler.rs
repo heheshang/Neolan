@@ -407,6 +407,7 @@ impl MessageHandler {
         if let Some(ref app_state) = self.app_state {
             let now = Utc::now();
             app_state.emit_tauri_event(TauriEvent::MessageReceived {
+                id: 0,  // 0 for real-time messages not yet saved to database
                 msg_id: proto_msg.packet_id.to_string(),
                 sender_ip: sender_ip.to_string(),
                 sender_name: proto_msg.sender_name.clone(),

@@ -120,7 +120,7 @@ function formatTime(timestamp: number): string {
 }
 
 function getLastMessage(peer: PeerDto): string {
-  return peer.status === 'online' ? '[在线]' : '[离线]';
+  return peer.status === 'online' ? '[在线111]' : '[离线]';
 }
 </script>
 

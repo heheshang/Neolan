@@ -131,7 +131,9 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 let unlistenMessage: (() => void) | null = null;
 
-const isSentMessage = (msg: MessageDto) => msg.senderIp === props.peer.ip;
+// Check if message was sent by us (not received from peer)
+// If receiverIp equals peer.ip, it means we sent this message to the peer
+const isSentMessage = (msg: MessageDto) => msg.receiverIp === props.peer.ip;
 
 function formatMessageTime(timestamp: number): string {
   const date = new Date(timestamp);

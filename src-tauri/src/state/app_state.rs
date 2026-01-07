@@ -16,6 +16,7 @@ use std::sync::mpsc;
 pub enum TauriEvent {
     /// Message received from peer
     MessageReceived {
+        id: i32,  // Database ID (0 for real-time messages not yet saved)
         #[serde(rename = "msgId")]
         msg_id: String,
         #[serde(rename = "senderIp")]
@@ -70,6 +71,58 @@ pub enum TauriEvent {
         #[serde(rename = "createdAt")]
         created_at: i64,
     },
+
+    /// Peers discovered after startup
+    PeersDiscovered {
+        #[serde(rename = "peers")]
+        peers: Vec<PeerDiscoveredDto>,
+    },
+}
+
+/// Peer discovered DTO for frontend
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct PeerDiscoveredDto {
+    /// IP address
+    #[serde(rename = "ip")]
+    pub ip: String,
+
+    /// Port
+    #[serde(rename = "port")]
+    pub port: u16,
+
+    /// Username (if available)
+    #[serde(rename = "username")]
+    pub username: Option<String>,
+
+    /// Hostname (if available)
+    #[serde(rename = "hostname")]
+    pub hostname: Option<String>,
+
+    /// Peer status
+    #[serde(rename = "status")]
+    pub status: String,
+
+    /// Last seen timestamp
+    #[serde(rename = "lastSeen")]
+    pub last_seen: i64,
+}
+
+impl PeerDiscoveredDto {
+    /// Create from PeerNode
+    pub fn from_peer_node(peer: &crate::modules::peer::types::PeerNode) -> Self {
+        Self {
+            ip: peer.ip.to_string(),
+            port: peer.port,
+            username: peer.username.clone(),
+            hostname: peer.hostname.clone(),
+            status: peer.status.as_str().to_string(),
+            last_seen: peer
+                .last_seen
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+        }
+    }
 }
 
 /// Application state
@@ -119,6 +172,39 @@ impl AppState {
     pub fn emit_tauri_event(&self, event: TauriEvent) {
         if let Some(sender) = self.tauri_event_sender.lock().unwrap().as_ref() {
             let _ = sender.send(event);
+        }
+    }
+
+    /// Emit peers discovered event
+    ///
+    /// This should be called after peer discovery to notify frontend of all discovered peers.
+    pub fn emit_peers_discovered(&self) {
+        let peers = self.get_peers();
+        let peer_dtos: Vec<PeerDiscoveredDto> = peers
+            .iter()
+            .map(PeerDiscoveredDto::from_peer_node)
+            .collect();
+
+        tracing::info!("Emitting PeersDiscovered event with {} peers", peer_dtos.len());
+
+        self.emit_tauri_event(TauriEvent::PeersDiscovered { peers: peer_dtos });
+    }
+
+    /// Get the peer manager
+    ///
+    /// Returns a cloned reference to the peer manager for direct access.
+    pub fn get_peer_manager(&self) -> Option<PeerManager> {
+        self.peer_manager.lock().unwrap().as_ref().cloned()
+    }
+
+    /// Start peer manager
+    ///
+    /// Starts the peer discovery and listening process in the current thread.
+    pub fn start_peer_manager(&self) -> Result<()> {
+        if let Some(manager) = self.get_peer_manager() {
+            manager.start()
+        } else {
+            Err(crate::NeoLanError::Other("Peer manager not initialized".to_string()))
         }
     }
 
@@ -243,6 +329,31 @@ impl AppState {
             let msg_id = handler.packet_id_counter().to_string();
 
             Ok(msg_id)
+        } else {
+            Err(crate::NeoLanError::Other(
+                "Message handler not initialized".to_string(),
+            ))
+        }
+    }
+
+    /// Handle a routed message from PeerManager
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message received from network
+    /// * `sender_ip` - IP address of the sender
+    /// * `local_ip` - Local IP address (for receiver field)
+    ///
+    /// # Returns
+    /// * `Ok(())` - Message processed successfully
+    /// * `Err(NeoLanError)` - Processing failed
+    pub fn handle_routed_message(
+        &self,
+        proto_msg: &crate::network::ProtocolMessage,
+        sender_ip: std::net::IpAddr,
+        local_ip: std::net::IpAddr,
+    ) -> Result<()> {
+        if let Some(handler) = self.message_handler.lock().unwrap().as_ref() {
+            handler.handle_incoming_message(proto_msg, sender_ip, local_ip)
         } else {
             Err(crate::NeoLanError::Other(
                 "Message handler not initialized".to_string(),

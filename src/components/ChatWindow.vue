@@ -77,8 +77,9 @@ const messagesContainer = ref<HTMLElement | null>(null);
 // Event listener cleanup function
 let unlistenMessage: (() => void) | null = null;
 
-// Computed
-const isSentMessage = (msg: MessageDto) => msg.senderIp === props.peer.ip;
+// Computed - Check if message was sent by us (not received from peer)
+// If receiverIp equals peer.ip, it means we sent this message to the peer
+const isSentMessage = (msg: MessageDto) => msg.receiverIp === props.peer.ip;
 
 const getSenderName = (msg: MessageDto) => {
   return isSentMessage(msg) ? 'You' : msg.senderName;

@@ -3,11 +3,12 @@
 // Protocol format:
 // version:packet_id:sender_name:sender_host:msg_type:content[:ext_fields]
 //
-// Encoding: UTF-8
+// Encoding: UTF-8 (standard), GBK (FeiQ compatibility)
 // Default UDP port: 2425
 
 use crate::{NeoLanError, Result};
 use serde::{Deserialize, Serialize};
+use encoding_rs::{GBK, UTF_8};
 
 /// Message type constants (compatible with IPMsg protocol)
 pub mod msg_type {
@@ -31,7 +32,8 @@ pub mod msg_type {
 
     /// 协议头 / 版本 / 端口
     pub const IPMSG_VERSION: u16 = 0x0001; // 协议版本
-    pub const IPMSG_DEFAULT_PORT: u16 = 0x0979; // 2425
+    // pub const IPMSG_DEFAULT_PORT: u16 = 0x0979; // 2425
+    pub const IPMSG_DEFAULT_PORT: u16 = 0x107f; //  2421 
 
     /// command (mode) — 低 8 位
     pub const IPMSG_NOOPERATION: u32 = 0x00000000; // 0 无操作
@@ -120,6 +122,66 @@ const MAX_PACKET_ID: u64 = u32::MAX as u64;
 /// Maximum message content size (1MB)
 const MAX_CONTENT_SIZE: usize = 1024 * 1024;
 
+/// Decode bytes to string with encoding auto-detection
+/// Tries UTF-8 first (standard IPMsg), then GBK (FeiQ compatibility)
+fn decode_message_bytes(data: &[u8]) -> String {
+    // Try UTF-8 first (standard IPMsg)
+    if let Ok(utf8_str) = std::str::from_utf8(data) {
+        return utf8_str.to_string();
+    }
+
+    // Try GBK encoding (FeiQ uses GBK for Chinese)
+    let (cow, _, _) = GBK.decode(data);
+    let gbk_str = cow.to_string();
+
+    // Log encoding detection for debugging
+    tracing::debug!("GBK encoding detected for message (non-UTF8 bytes)");
+
+    gbk_str
+}
+
+/// Explain message type with its flags for debugging
+/// Returns a human-readable description of the message type
+pub fn explain_message_type(msg_type: u32) -> String {
+    let mode = msg_type::get_mode(msg_type) as u32;
+    let opts = msg_type::get_opt(msg_type);
+
+    let mode_name = get_message_type_name(msg_type);
+
+    let mut flags = Vec::new();
+
+    // Check common option flags
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_FILEATTACHOPT) {
+        flags.push("FILEATTACH".to_string());
+    }
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_UTF8OPT) {
+        flags.push("UTF8".to_string());
+    }
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_ENCRYPTOPT) {
+        flags.push("ENCRYPT".to_string());
+    }
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_ABSENCEOPT) {
+        flags.push("ABSENCE".to_string());
+    }
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_SENDCHECKOPT) {
+        flags.push("SENDCHECK".to_string());
+    }
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_SECRETOPT) {
+        flags.push("SECRET".to_string());
+    }
+    if msg_type::has_opt(msg_type, msg_type::IPMSG_BROADCASTOPT) {
+        flags.push("BROADCAST".to_string());
+    }
+
+    let flags_str = if flags.is_empty() {
+        String::new()
+    } else {
+        format!(" | [{}]", flags.join(" | "))
+    };
+
+    format!("{} (0x{:08X} = mode: 0x{:02X}{})", mode_name, msg_type, mode, flags_str)
+}
+
 /// IPMsg-compatible protocol message
 ///
 /// This structure represents a single message in the IPMsg protocol format.
@@ -191,8 +253,8 @@ pub struct FileSendResponse {
 /// # Ok::<(), NeoLanError>(())
 /// ```
 pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
-    // Convert bytes to UTF-8 string (using lossy conversion for FeiQ GBK encoding)
-    let message_str = String::from_utf8_lossy(data);
+    // Decode bytes with auto-detection (UTF-8 or GBK for FeiQ)
+    let message_str = decode_message_bytes(data);
     tracing::debug!("Received message: {}", message_str);
 
     // Handle FeiQ hybrid format: contains '#' followed by IPMsg-compatible section
@@ -288,7 +350,9 @@ pub fn parse_message(data: &[u8]) -> Result<ProtocolMessage> {
     let msg_type: u32 = fields[4]
         .parse()
         .map_err(|_| NeoLanError::Protocol(format!("Invalid msg_type: {}", fields[4])))?;
-    eprintln!("Received message: msg_type{}", msg_type);
+
+    // Log message type with explanation
+    tracing::debug!("Message type: {}", explain_message_type(msg_type));
     // Extract content (fields 5+ are joined with ":")
     // This allows content to contain ":" as well
     let content = if fields.len() > 6 {

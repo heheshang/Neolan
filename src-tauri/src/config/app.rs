@@ -57,7 +57,7 @@ impl Default for AppConfig {
             username: whoami::username(),
             hostname: whoami::fallible::hostname().unwrap_or_else(|_| "localhost".to_string()),
             bind_ip: "0.0.0.0".to_string(),
-            udp_port: 2425,
+            udp_port: 2421,
             tcp_port_start: 8000,
             tcp_port_end: 9000,
             heartbeat_interval: 60,
