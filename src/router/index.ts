@@ -4,7 +4,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: "/",
     name: "Home",
-    redirect: "/peers",
+    redirect: "/chat",
   },
   {
     path: "/peers",
@@ -12,9 +12,19 @@ const routes: RouteRecordRaw[] = [
     component: () => import("../views/PeersView.vue"),
   },
   {
+    path: "/chat",
+    name: "Chat",
+    component: () => import("../views/ChatView.vue"),
+  },
+  {
     path: "/settings",
     name: "Settings",
     component: () => import("../views/SettingsView.vue"),
+  },
+  {
+    path: "/transfers",
+    name: "FileTransfers",
+    component: () => import("../views/FileTransfersView.vue"),
   },
 ];
 

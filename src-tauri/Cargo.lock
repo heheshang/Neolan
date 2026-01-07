@@ -2568,6 +2568,7 @@ dependencies = [
  "chrono",
  "ctrlc",
  "dirs 5.0.1",
+ "md-5",
  "sea-orm",
  "sea-orm-migration",
  "serde",

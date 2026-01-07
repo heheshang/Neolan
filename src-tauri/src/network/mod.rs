@@ -2,6 +2,7 @@
 
 pub mod protocol;
 pub mod udp;
+pub mod tcp;
 
 // Re-export commonly used types
 pub use protocol::{
@@ -16,3 +17,4 @@ pub use protocol::{
 };
 
 pub use udp::{UdpTransport, DEFAULT_UDP_PORT};
+pub use tcp::{TcpTransport, DEFAULT_BUFFER_SIZE, PORT_RANGE_START, PORT_RANGE_END};

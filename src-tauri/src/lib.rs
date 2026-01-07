@@ -22,6 +22,7 @@ use commands::peer::{get_peers, get_online_peers, get_peer_by_ip, get_peer_stats
 use commands::config::{get_config, set_config, reset_config, get_config_value, set_config_value};
 use commands::events::poll_events;
 use commands::message::{send_message, send_text_message, get_messages};
+use commands::file_transfer::{accept_file_transfer, reject_file_transfer, get_file_transfers, cancel_file_transfer};
 use std::sync::mpsc;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -76,6 +77,11 @@ pub fn run() {
                                 tracing::error!("Failed to emit peer-offline event: {}", e);
                             }
                         }
+                        TauriEvent::FileTransferRequest { .. } => {
+                            if let Err(e) = app_handle.emit("file-transfer-request", &event) {
+                                tracing::error!("Failed to emit file-transfer-request event: {}", e);
+                            }
+                        }
                     }
                 }
                 tracing::info!("Event listener task ended");
@@ -99,6 +105,10 @@ pub fn run() {
             send_message,
             send_text_message,
             get_messages,
+            accept_file_transfer,
+            reject_file_transfer,
+            get_file_transfers,
+            cancel_file_transfer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

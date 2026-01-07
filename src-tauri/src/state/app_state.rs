@@ -52,6 +52,24 @@ pub enum TauriEvent {
         #[serde(rename = "peerIp")]
         peer_ip: String,
     },
+
+    /// File transfer request received
+    FileTransferRequest {
+        #[serde(rename = "requestId")]
+        request_id: String,
+        #[serde(rename = "senderIp")]
+        sender_ip: String,
+        #[serde(rename = "senderName")]
+        sender_name: String,
+        #[serde(rename = "fileName")]
+        file_name: String,
+        #[serde(rename = "fileSize")]
+        file_size: u64,
+        #[serde(rename = "md5")]
+        md5: String,
+        #[serde(rename = "createdAt")]
+        created_at: i64,
+    },
 }
 
 /// Application state

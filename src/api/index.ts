@@ -130,3 +130,51 @@ export async function getMessages(peerIp: string, limit?: number): Promise<Messa
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke<MessageDto[]>("get_messages", { peerIp, limit });
 }
+
+// ==================== File Transfer Commands ====================
+
+export interface TaskDto {
+  id: string;
+  direction: "upload" | "download";
+  peerIp: string;
+  fileName: string;
+  fileSize: number;
+  md5: string;
+  status: "pending" | "active" | "paused" | "completed" | "failed" | "cancelled";
+  transferredBytes: number;
+  progress: number;
+  port?: number;
+  error?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface FileTransferRequestEvent {
+  requestId: string;
+  senderIp: string;
+  senderName: string;
+  fileName: string;
+  fileSize: number;
+  md5: string;
+  createdAt: number;
+}
+
+export async function get_file_transfers(): Promise<TaskDto[]> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<TaskDto[]>("get_file_transfers");
+}
+
+export async function cancel_file_transfer(taskId: string): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<void>("cancel_file_transfer", { taskId });
+}
+
+export async function accept_file_transfer(requestId: string, tcpPort: number): Promise<string> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<string>("accept_file_transfer", { requestId, tcpPort });
+}
+
+export async function reject_file_transfer(requestId: string): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke<void>("reject_file_transfer", { requestId });
+}

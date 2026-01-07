@@ -15,6 +15,7 @@ use crate::network::{serialize_message, msg_type, ProtocolMessage};
 use crate::network::udp::UdpTransport;
 use crate::storage::message_repo::{MessageRepository, MessageModel};
 use crate::state::AppState;
+use crate::modules::file_transfer::FileTransferResponse;
 use crate::state::app_state::TauriEvent;
 use crate::{NeoLanError, Result};
 use chrono::Utc;
@@ -44,6 +45,9 @@ pub struct MessageHandler {
 
     /// Application state for emitting events
     app_state: Option<Arc<AppState>>,
+
+    /// File transfer response handler (optional)
+    file_transfer: Option<Arc<FileTransferResponse>>,
 }
 
 impl MessageHandler {
@@ -73,6 +77,7 @@ impl MessageHandler {
             packet_id_counter: Arc::new(AtomicU64::new(1)),
             message_repo: None,
             app_state: None,
+            file_transfer: None,
         }
     }
 
@@ -92,6 +97,7 @@ impl MessageHandler {
             packet_id_counter: Arc::new(AtomicU64::new(1)),
             message_repo: Some(message_repo),
             app_state: None,
+            file_transfer: None,
         }
     }
 
@@ -101,6 +107,15 @@ impl MessageHandler {
     /// * `app_state` - Application state reference
     pub fn with_app_state(mut self, app_state: Arc<AppState>) -> Self {
         self.app_state = Some(app_state);
+        self
+    }
+
+    /// Set the file transfer response handler
+    ///
+    /// # Arguments
+    /// * `file_transfer` - File transfer response handler
+    pub fn with_file_transfer(mut self, file_transfer: Arc<FileTransferResponse>) -> Self {
+        self.file_transfer = Some(file_transfer);
         self
     }
 
@@ -317,9 +332,12 @@ impl MessageHandler {
             }
 
             // File transfer messages
-            msg_type::IPMSG_GETFILEDATA | msg_type::IPMSG_RELEASEFILES => {
-                tracing::info!("File transfer message from {}", sender_ip);
-                // TODO: Handle file transfer requests
+            msg_type::IPMSG_GETFILEDATA => {
+                self.handle_file_transfer_request(proto_msg, sender_ip)?;
+            }
+            msg_type::IPMSG_RELEASEFILES => {
+                tracing::info!("File transfer response from {}", sender_ip);
+                // TODO: Handle file transfer response (accept/reject notification)
             }
 
             // Other message types - log and ignore
@@ -402,6 +420,49 @@ impl MessageHandler {
                 created_at: now.timestamp_millis(),
             });
             tracing::debug!("Emitted message-received event for msg_id={}", proto_msg.packet_id);
+        }
+
+        Ok(())
+    }
+
+    /// Handle a file transfer request (IPMSG_GETFILEDATA)
+    ///
+    /// Parses the file transfer request and emits a Tauri event for user confirmation.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message containing the file request
+    /// * `sender_ip` - Sender's IP address
+    fn handle_file_transfer_request(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "File transfer request from {} ({}): {}",
+            proto_msg.sender_name,
+            sender_ip,
+            proto_msg.content.chars().take(50).collect::<String>()
+        );
+
+        // Only handle if file transfer response handler is available
+        if let Some(ref handler) = self.file_transfer {
+            // Parse the request
+            let pending = handler.handle_incoming_request(proto_msg, sender_ip)?;
+
+            // Emit Tauri event for user confirmation
+            if let Some(ref app_state) = self.app_state {
+                let event = handler.to_event(&pending);
+                app_state.emit_tauri_event(event);
+                tracing::info!(
+                    "Emitted file-transfer-request event: requestId={}, file={}",
+                    pending.id,
+                    pending.file_name
+                );
+            } else {
+                tracing::warn!("App state not available - cannot notify user of file transfer request");
+            }
+        } else {
+            tracing::warn!("File transfer handler not available - cannot handle file transfer request");
         }
 
         Ok(())
