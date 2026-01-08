@@ -131,34 +131,8 @@ pub async fn send_message(
         tracing::error!("Failed to emit message-sent event: {}", e);
     }
 
-    // Check if sending to self (local IP)
-    let is_sending_to_self = target_ip.to_string() == local_ip ||
-                             (target_ip.is_ipv4() && target_ip.is_loopback()) ||
-                             (target_ip.is_ipv6() && target_ip.is_loopback());
-
-    // Only emit immediate event if NOT sending to self
-    // When sending to self, the UDP message will be received and processed normally
-    if !is_sending_to_self {
-        let received_event = MessageReceivedEvent {
-            id: 0,  // 0 for real-time messages not yet saved to database
-            msg_id: msg_id.clone(),
-            sender_ip: local_ip.clone(),
-            sender_name: config.username.clone(),
-            receiver_ip: peer_ip.clone(),
-            content: content.clone(),
-            msg_type: 0x20, // IPMSG_SENDMSG
-            is_encrypted: false,
-            is_offline: false,
-            sent_at: chrono::Utc::now().timestamp_millis(),
-            received_at: None,
-            created_at: chrono::Utc::now().timestamp_millis(),
-        };
-        if let Err(e) = app.emit("message-received", received_event) {
-            tracing::error!("Failed to emit message-received event: {}", e);
-        }
-    } else {
-        tracing::debug!("Sending message to self - skipping immediate event, will receive via UDP");
-    }
+    // Note: message-received event will be emitted by MessageHandler
+    // when the UDP message is received via listen_incoming callback
 
     tracing::info!("Message sent successfully: msg_id={}", msg_id);
     Ok(msg_id)

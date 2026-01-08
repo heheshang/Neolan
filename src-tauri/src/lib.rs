@@ -68,12 +68,17 @@ pub fn run() {
 
             // Spawn background task to listen for events and forward to frontend
             tauri::async_runtime::spawn(async move {
-                tracing::info!("Event listener task started");
+                tracing::info!("🎧 [EVENT TASK] Event listener task started");
                 for event in event_rx {
                     match &event {
-                        TauriEvent::MessageReceived { .. } => {
+                        TauriEvent::MessageReceived { msg_id, sender_name, sender_ip, content, .. } => {
+                            tracing::info!("📤 [TAURI EMIT] Emitting message-received to frontend: msg_id={}, from={}, ip={}, content={}",
+                                msg_id, sender_name, sender_ip,
+                                content.chars().take(50).collect::<String>());
                             if let Err(e) = app_handle.emit("message-received", &event) {
-                                tracing::error!("Failed to emit message-received event: {}", e);
+                                tracing::error!("❌ Failed to emit message-received event: {}", e);
+                            } else {
+                                tracing::debug!("✅ message-received event emitted successfully to frontend");
                             }
                         }
                         TauriEvent::PeerOnline { .. } => {
@@ -94,6 +99,15 @@ pub fn run() {
                         TauriEvent::PeersDiscovered { .. } => {
                             if let Err(e) = app_handle.emit("peers-discovered", &event) {
                                 tracing::error!("Failed to emit peers-discovered event: {}", e);
+                            }
+                        }
+                        TauriEvent::MessageReceiptAck { msg_id, sender_ip, sender_name, .. } => {
+                            tracing::info!("📤 [TAURI EMIT] Emitting message-receipt-ack to frontend: msg_id={}, from={}, ip={}",
+                                msg_id, sender_name, sender_ip);
+                            if let Err(e) = app_handle.emit("message-receipt-ack", &event) {
+                                tracing::error!("❌ Failed to emit message-receipt-ack event: {}", e);
+                            } else {
+                                tracing::debug!("✅ message-receipt-ack event emitted successfully to frontend");
                             }
                         }
                     }

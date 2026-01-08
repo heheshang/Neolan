@@ -19,7 +19,7 @@
       <div v-else class="chat-message-list">
         <div
           v-for="msg in messages"
-          :key="msg.id"
+          :key="msg.msgId || msg.id || String(msg.sentAt)"
           class="chat-message"
           :class="isSentMessage(msg) ? 'message-sent' : 'message-received'"
         >
@@ -137,14 +137,44 @@ const sendMessage = async () => {
 // Setup event listener for real-time messages
 const setupEventListener = async () => {
   try {
-    unlistenMessage = await listen<MessageDto>('message-received', (event) => {
-      const msg = event.payload;
+    console.log(`[ChatWindow] Setting up message listener for peer: ${props.peer.ip}`);
+    unlistenMessage = await listen<any>('message-received', (event) => {
+      console.log(`[ChatWindow] Raw event payload:`, event.payload);
+
+      // Tauri sends the enum variant, so we need to extract the actual message data
+      const payload = event.payload;
+      const messageData = payload.MessageReceived || payload;
+
+      console.log(`[ChatWindow] Extracted message data:`, {
+        msgId: messageData.msgId,
+        senderIp: messageData.senderIp,
+        receiverIp: messageData.receiverIp,
+        content: messageData.content
+      });
+
       // Only add message if it's from the current peer
-      if (msg.senderIp === props.peer.ip || msg.receiverIp === props.peer.ip) {
+      if (messageData.senderIp === props.peer.ip || messageData.receiverIp === props.peer.ip) {
+        // Convert to MessageDto format
+        const msg: MessageDto = {
+          id: messageData.id || 0,
+          msgId: messageData.msgId,
+          senderIp: messageData.senderIp,
+          senderName: messageData.senderName,
+          receiverIp: messageData.receiverIp,
+          msgType: messageData.msgType,
+          content: messageData.content,
+          isEncrypted: messageData.isEncrypted,
+          isOffline: messageData.isOffline,
+          sentAt: messageData.sentAt,
+          receivedAt: messageData.receivedAt,
+          createdAt: messageData.createdAt
+        };
+
         messages.value.push(msg);
         scrollToBottom();
       }
     });
+    console.log(`[ChatWindow] Message listener setup complete`);
   } catch (err) {
     console.error('Failed to setup event listener:', err);
   }

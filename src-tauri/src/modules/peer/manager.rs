@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::io::{self, Error as IoError, ErrorKind};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex, PoisonError};
-use tracing::{info, warn, debug};
+use tracing::{info, warn, debug, error};
 use std::sync::mpsc::Sender;
 
 /// Convert lock poison error to io error
@@ -148,7 +148,9 @@ impl PeerManager {
     ) -> Result<()> {
         let ip = sender.ip();
 
-        debug!("Received message from {}: type={}", ip, msg.msg_type);
+        info!("📨 [UDP RECEIVE] Received message from {}: type={}, sender={}, content={}",
+            ip, msg.msg_type, msg.sender_name,
+            msg.content.chars().take(50).collect::<String>());
 
         // Extract base mode (low 8 bits) to handle messages with options
         let mode = crate::network::msg_type::get_mode(msg.msg_type);
@@ -156,31 +158,58 @@ impl PeerManager {
         match mode as u32 {
             // IPMSG_BR_ENTRY: Peer is online / broadcasting presence
             crate::network::msg_type::IPMSG_BR_ENTRY => {
+                debug!("📢 Handling BR_ENTRY (peer online)");
                 Self::handle_online_msg(peers, msg, sender)?;
             }
             // IPMSG_BR_EXIT: Peer is going offline
             crate::network::msg_type::IPMSG_BR_EXIT => {
+                debug!("📴 Handling BR_EXIT (peer offline)");
                 Self::handle_offline_msg(peers, ip)?;
             }
             // IPMSG_ANSENTRY: Response to BR_ENTRY (also indicates online presence)
             crate::network::msg_type::IPMSG_ANSENTRY => {
+                debug!("📢 Handling ANSENTRY (peer online response)");
                 Self::handle_online_msg(peers, msg, sender)?;
             }
             // IPMSG_SENDMSG: Text message - route to MessageHandler
             crate::network::msg_type::IPMSG_SENDMSG => {
-                debug!("Routing text message to MessageHandler");
+                info!("💌 [TEXT MESSAGE] Routing text message to MessageHandler: from={}, content={}",
+                    msg.sender_name, msg.content.chars().take(100).collect::<String>());
                 if let Some(ref tx) = *message_tx.lock().unwrap() {
-                    let _ = tx.send(MessageRouteRequest {
+                    let route_req = MessageRouteRequest {
                         message: msg,
                         sender,
-                    });
+                    };
+                    if let Err(e) = tx.send(route_req) {
+                        error!("❌ Failed to send message to MessageHandler: {}", e);
+                    } else {
+                        debug!("✅ Message routed to MessageHandler successfully");
+                    }
                 } else {
-                    warn!("MessageHandler channel not set - text message not routed");
+                    warn!("⚠️ MessageHandler channel not set - text message not routed");
+                }
+            }
+            // IPMSG_RECVMSG: Message acknowledgment - route to MessageHandler
+            crate::network::msg_type::IPMSG_RECVMSG => {
+                info!("✅ [RECEIPT ACK] Routing message acknowledgment to MessageHandler: from={}, packet_id={}",
+                    msg.sender_name, msg.packet_id);
+                if let Some(ref tx) = *message_tx.lock().unwrap() {
+                    let route_req = MessageRouteRequest {
+                        message: msg,
+                        sender,
+                    };
+                    if let Err(e) = tx.send(route_req) {
+                        error!("❌ Failed to send acknowledgment to MessageHandler: {}", e);
+                    } else {
+                        debug!("✅ Acknowledgment routed to MessageHandler successfully");
+                    }
+                } else {
+                    warn!("⚠️ MessageHandler channel not set - acknowledgment not routed");
                 }
             }
             _ => {
                 // Other message types (FILE_SEND_REQ, etc.)
-                debug!("Ignoring message type: {} (mode: {}, options: 0x{:06x})",
+                debug!("ℹ️ Ignoring message type: {} (mode: {}, options: 0x{:06x})",
                     msg.msg_type, mode, crate::network::msg_type::get_opt(msg.msg_type));
             }
         }

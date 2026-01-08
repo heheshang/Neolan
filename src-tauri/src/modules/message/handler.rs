@@ -22,6 +22,7 @@ use chrono::Utc;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use tracing::instrument;
 
 /// Default UDP port for IPMsg protocol
 const DEFAULT_UDP_PORT: u16 = 2425;
@@ -142,6 +143,7 @@ impl MessageHandler {
     /// handler.send_text_message(target_ip, "Hello, World!")?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
+    #[instrument(skip(self), fields(target_ip = %target_ip, content_len = content.len()))]
     pub fn send_text_message(&self, target_ip: IpAddr, content: &str) -> Result<()> {
         tracing::info!(
             "Sending text message to {}: {}",
@@ -156,8 +158,8 @@ impl MessageHandler {
             ));
         }
 
-        // Create target peer info
-        let target_peer = PeerInfo::new(target_ip, DEFAULT_UDP_PORT, None);
+        // Create target peer info (use configured UDP port)
+        let target_peer = PeerInfo::new(target_ip, self.config.udp_port, None);
 
         // Create sender peer info (local)
         let sender_peer = PeerInfo::new(
@@ -179,14 +181,19 @@ impl MessageHandler {
             timestamp: chrono::Utc::now(),
         };
 
-        // Convert to protocol message
-        let proto_msg = message.to_protocol(&self.config.username, &self.config.hostname);
+        // Convert to protocol message with SENDCHECKOPT flag
+        // This tells the receiver to send back an IPMSG_RECVMSG acknowledgment
+        let proto_msg = message.to_protocol_with_options(
+            &self.config.username,
+            &self.config.hostname,
+            msg_type::IPMSG_SENDCHECKOPT, // Request acknowledgment
+        );
 
         // Serialize to bytes
         let bytes = serialize_message(&proto_msg)?;
 
-        // Send via UDP
-        let target_addr = SocketAddr::new(target_ip, DEFAULT_UDP_PORT);
+        // Send via UDP (use configured UDP port)
+        let target_addr = SocketAddr::new(target_ip, self.config.udp_port);
         self.udp.send_to(&bytes, target_addr)?;
 
         tracing::debug!("Message sent successfully to {}", target_ip);
@@ -295,6 +302,7 @@ impl MessageHandler {
     /// - IPMSG_BR_EXIT (0x00000002) → Should be handled by PeerManager
     /// - IPMSG_ANSENTRY (0x00000003) → Should be handled by HeartbeatMonitor
     /// - Other types → Logged and ignored
+    #[instrument(skip(self, proto_msg), fields(sender_ip = %sender_ip, msg_type = %msg_type::get_mode(proto_msg.msg_type)))]
     pub fn handle_incoming_message(
         &self,
         proto_msg: &ProtocolMessage,
@@ -310,42 +318,136 @@ impl MessageHandler {
         );
 
         match mode {
-            // Text message - store to database
+            // ========== Text Messages ==========
+            // IPMSG_SENDMSG: 发送消息
             msg_type::IPMSG_SENDMSG => {
+                tracing::debug!("📨 [handle_incoming_message] Routing to handle_text_message");
                 self.handle_text_message(proto_msg, sender_ip, local_ip)?;
             }
 
-            // Peer discovery messages - these should be handled by PeerManager
+            // IPMSG_RECVMSG: 接收确认（对方已收到消息）
+            msg_type::IPMSG_RECVMSG => {
+                tracing::debug!("📨 [handle_incoming_message] Routing to handle_recv_msg");
+                self.handle_recv_msg(proto_msg, sender_ip)?;
+            }
+
+            // ========== Message Read/Delete Status ==========
+            // IPMSG_READMSG: 消息已读
+            msg_type::IPMSG_READMSG => {
+                self.handle_read_msg(proto_msg, sender_ip)?;
+            }
+
+            // IPMSG_DELMSG: 删除消息
+            msg_type::IPMSG_DELMSG => {
+                self.handle_del_msg(proto_msg, sender_ip)?;
+            }
+
+            // IPMSG_ANSREADMSG: 对已读消息的应答
+            msg_type::IPMSG_ANSREADMSG => {
+                self.handle_answer_read_msg(proto_msg, sender_ip)?;
+            }
+
+            // ========== Peer Discovery Messages ==========
+            // These should be handled by PeerManager through its own discovery callback
             msg_type::IPMSG_BR_ENTRY | msg_type::IPMSG_BR_EXIT | msg_type::IPMSG_ANSENTRY => {
                 tracing::debug!(
-                    "Peer discovery message (mode={}), delegating to PeerManager",
+                    "📢 Peer discovery message (mode={}), delegating to PeerManager",
                     mode
                 );
                 // PeerManager will handle these through its own discovery callback
                 // No action needed here - the message is already logged
             }
 
-            // Read receipt
-            msg_type::IPMSG_READMSG => {
-                tracing::info!("Read receipt received from {}", sender_ip);
-                // TODO: Mark message as read in database
+            // IPMSG_BR_ABSENCE: 广播缺席状态
+            msg_type::IPMSG_BR_ABSENCE => {
+                tracing::info!("🏖️ Absence status broadcast from {}", sender_ip);
+                // TODO: Update peer absence status in PeerManager
             }
 
-            // File transfer messages
+            // ========== Peer List Management ==========
+            // IPMSG_BR_ISGETLIST: 请求是否需要列表
+            msg_type::IPMSG_BR_ISGETLIST | msg_type::IPMSG_BR_ISGETLIST2 => {
+                tracing::info!("📋 Peer list request from {}", sender_ip);
+                // TODO: Send response with IPMSG_OKGETLIST
+            }
+
+            // IPMSG_OKGETLIST: 同意发送列表
+            msg_type::IPMSG_OKGETLIST => {
+                tracing::info!("✅ Peer list approval from {}", sender_ip);
+                // TODO: Proceed to send IPMSG_GETLIST
+            }
+
+            // IPMSG_GETLIST: 请求列表
+            msg_type::IPMSG_GETLIST => {
+                tracing::info!("📋 Get list request from {}", sender_ip);
+                // TODO: Send peer list with IPMSG_ANSLIST
+            }
+
+            // IPMSG_ANSLIST: 返回列表
+            msg_type::IPMSG_ANSLIST => {
+                self.handle_peer_list_response(proto_msg, sender_ip)?;
+            }
+
+            // ========== User Information ==========
+            // IPMSG_GETINFO: 请求用户信息
+            msg_type::IPMSG_GETINFO => {
+                tracing::info!("ℹ️ User info request from {}", sender_ip);
+                // TODO: Send user info with IPMSG_SENDINFO
+            }
+
+            // IPMSG_SENDINFO: 发送用户信息
+            msg_type::IPMSG_SENDINFO => {
+                self.handle_user_info(proto_msg, sender_ip)?;
+            }
+
+            // ========== Absence Information ==========
+            // IPMSG_GETABSENCEINFO: 请求缺席信息
+            msg_type::IPMSG_GETABSENCEINFO => {
+                tracing::info!("🏖️ Absence info request from {}", sender_ip);
+                // TODO: Send absence info with IPMSG_SENDABSENCEINFO
+            }
+
+            // IPMSG_SENDABSENCEINFO: 发送缺席信息
+            msg_type::IPMSG_SENDABSENCEINFO => {
+                self.handle_absence_info(proto_msg, sender_ip)?;
+            }
+
+            // ========== File Transfer ==========
+            // IPMSG_GETFILEDATA: 请求文件数据（文件传输）
             msg_type::IPMSG_GETFILEDATA => {
                 self.handle_file_transfer_request(proto_msg, sender_ip)?;
             }
+
+            // IPMSG_RELEASEFILES: 释放文件资源
             msg_type::IPMSG_RELEASEFILES => {
-                tracing::info!("File transfer response from {}", sender_ip);
-                // TODO: Handle file transfer response (accept/reject notification)
+                self.handle_release_files(proto_msg, sender_ip)?;
             }
 
-            // Other message types - log and ignore
+            // IPMSG_GETDIRFILES: 请求目录文件列表
+            msg_type::IPMSG_GETDIRFILES => {
+                tracing::info!("📁 Directory file list request from {}", sender_ip);
+                // TODO: Handle directory file list request
+            }
+
+            // ========== Encryption ==========
+            // IPMSG_GETPUBKEY: 请求公钥
+            msg_type::IPMSG_GETPUBKEY => {
+                tracing::info!("🔑 Public key request from {}", sender_ip);
+                // TODO: Send public key with IPMSG_ANSPUBKEY
+            }
+
+            // IPMSG_ANSPUBKEY: 应答公钥
+            msg_type::IPMSG_ANSPUBKEY => {
+                self.handle_public_key_response(proto_msg, sender_ip)?;
+            }
+
+            // ========== Unknown Message Types ==========
             _ => {
-                tracing::debug!(
-                    "Unhandled message type: mode=0x{:02x} from {}",
+                tracing::warn!(
+                    "⚠️ Unhandled message type: mode=0x{:02x} from {}, content={}",
                     mode,
-                    sender_ip
+                    sender_ip,
+                    proto_msg.content.chars().take(50).collect::<String>()
                 );
             }
         }
@@ -361,6 +463,7 @@ impl MessageHandler {
     /// * `proto_msg` - Protocol message
     /// * `sender_ip` - Sender's IP address
     /// * `local_ip` - Local IP address (receiver)
+    #[instrument(skip(self, proto_msg), fields(sender_ip = %sender_ip, sender_name = %proto_msg.sender_name, packet_id = %proto_msg.packet_id))]
     fn handle_text_message(
         &self,
         proto_msg: &ProtocolMessage,
@@ -368,9 +471,11 @@ impl MessageHandler {
         local_ip: IpAddr,
     ) -> Result<()> {
         tracing::info!(
-            "Text message from {}: {}",
+            "💬 Processing text message: from={}, to={}, msg_id={}, content={}",
             proto_msg.sender_name,
-            proto_msg.content.chars().take(50).collect::<String>()
+            local_ip,
+            proto_msg.packet_id,
+            proto_msg.content.chars().take(100).collect::<String>()
         );
 
         // Only store if message repository is available
@@ -398,15 +503,15 @@ impl MessageHandler {
                 repo.insert(&message_model).await
             })?;
 
-            tracing::debug!("Message stored to database: msg_id={}", proto_msg.packet_id);
+            tracing::debug!("💾 Message stored to database: msg_id={}", proto_msg.packet_id);
         } else {
-            tracing::warn!("Message repository not available - message not stored");
+            tracing::warn!("⚠️ Message repository not available - message not stored");
         }
 
         // Emit Tauri event for real-time frontend update
         if let Some(ref app_state) = self.app_state {
             let now = Utc::now();
-            app_state.emit_tauri_event(TauriEvent::MessageReceived {
+            let event = TauriEvent::MessageReceived {
                 id: 0,  // 0 for real-time messages not yet saved to database
                 msg_id: proto_msg.packet_id.to_string(),
                 sender_ip: sender_ip.to_string(),
@@ -419,8 +524,59 @@ impl MessageHandler {
                 sent_at: now.timestamp_millis(),
                 received_at: Some(now.timestamp_millis()),
                 created_at: now.timestamp_millis(),
-            });
-            tracing::debug!("Emitted message-received event for msg_id={}", proto_msg.packet_id);
+            };
+            app_state.emit_tauri_event(event);
+            tracing::info!("✅ Emitted message-received event to frontend: msg_id={}, from={}, content={}",
+                proto_msg.packet_id,
+                proto_msg.sender_name,
+                proto_msg.content.chars().take(50).collect::<String>()
+            );
+        } else {
+            tracing::warn!("⚠️ App state not available - cannot emit message-received event");
+        }
+
+        // Send IPMSG_RECVMSG acknowledgment if message has SENDCHECKOPT flag
+        // This tells the sender that we received their message
+        if msg_type::has_opt(proto_msg.msg_type, msg_type::IPMSG_SENDCHECKOPT) {
+            tracing::info!("📤 [handle_text_message] Sending IPMSG_RECVMSG acknowledgment to {}: original_msg_id={}, ack_msg_id={}",
+                sender_ip, proto_msg.packet_id, self.next_packet_id());
+
+            // Create acknowledgment message
+            let ack_msg = Message {
+                id: uuid::Uuid::new_v4(),
+                packet_id: self.next_packet_id().to_string(),
+                sender: PeerInfo::new(
+                    self.config.bind_ip.parse().map_err(|_| {
+                        NeoLanError::Config(format!("Invalid bind IP: {}", self.config.bind_ip))
+                    })?,
+                    self.config.udp_port,
+                    Some(self.config.username.clone()),
+                ),
+                receiver: PeerInfo::new(sender_ip, self.config.udp_port, None),
+                msg_type: MessageType::RecvAck,  // This will map to IPMSG_RECVMSG
+                content: proto_msg.packet_id.to_string(),  // Send back the original packet ID
+                timestamp: chrono::Utc::now(),
+            };
+
+            // Convert to protocol message
+            let proto_ack = ack_msg.to_protocol(&self.config.username, &self.config.hostname);
+
+            tracing::debug!("📤 [handle_text_message] ACK protocol msg_type=0x{:08x}, packet_id={}",
+                proto_ack.msg_type, proto_ack.packet_id);
+
+            // Serialize and send
+            let bytes = serialize_message(&proto_ack)?;
+            let target_addr = SocketAddr::new(sender_ip, self.config.udp_port);
+
+            tracing::debug!("📤 [handle_text_message] Sending ACK to {}, bytes_len={}",
+                target_addr, bytes.len());
+
+            self.udp.send_to(&bytes, target_addr)?;
+
+            tracing::debug!("✅ [handle_text_message] IPMSG_RECVMSG acknowledgment sent successfully");
+        } else {
+            tracing::debug!("ℹ️ [handle_text_message] No SENDCHECKOPT flag (msg_type=0x{:08x}) - skipping acknowledgment",
+                proto_msg.msg_type);
         }
 
         Ok(())
@@ -466,6 +622,225 @@ impl MessageHandler {
             tracing::warn!("File transfer handler not available - cannot handle file transfer request");
         }
 
+        Ok(())
+    }
+
+    // ==================== Additional Message Handlers ====================
+
+    /// Handle receive message acknowledgment (IPMSG_RECVMSG)
+    ///
+    /// The peer has confirmed receipt of a message we sent.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message
+    /// * `sender_ip` - Sender's IP address
+    #[instrument(skip(self, proto_msg), fields(sender_ip = %sender_ip, packet_id = %proto_msg.packet_id))]
+    fn handle_recv_msg(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "✅ [handle_recv_msg] Message receipt acknowledged from {}: msg_id={}, content={}",
+            sender_ip,
+            proto_msg.packet_id,
+            proto_msg.content
+        );
+
+        // Emit Tauri event for message receipt acknowledgment
+        if let Some(ref app_state) = self.app_state {
+            let now = Utc::now();
+            let event = TauriEvent::MessageReceiptAck {
+                msg_id: proto_msg.content.clone(),  // Content contains the original message ID
+                sender_ip: sender_ip.to_string(),
+                sender_name: proto_msg.sender_name.clone(),
+                acknowledged_at: now.timestamp_millis(),
+            };
+            app_state.emit_tauri_event(event);
+            tracing::info!("✅ [handle_recv_msg] Emitted message-receipt-ack event to frontend: msg_id={}, from={}",
+                proto_msg.content, sender_ip);
+        } else {
+            tracing::warn!("⚠️ [handle_recv_msg] App state not available - cannot emit message-receipt-ack event");
+        }
+
+        // TODO: Update message status in database to "delivered"
+        Ok(())
+    }
+
+    /// Handle read message notification (IPMSG_READMSG)
+    ///
+    /// The peer has read a message we sent.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message
+    /// * `sender_ip` - Sender's IP address
+    #[instrument(skip(self, proto_msg), fields(sender_ip = %sender_ip))]
+    fn handle_read_msg(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "📖 Message read by {}: msg_id={}",
+            sender_ip,
+            proto_msg.packet_id
+        );
+        // TODO: Update message status in database to "read"
+        // TODO: Emit Tauri event for frontend notification
+        Ok(())
+    }
+
+    /// Handle delete message request (IPMSG_DELMSG)
+    ///
+    /// The peer wants to delete a message.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message
+    /// * `sender_ip` - Sender's IP address
+    #[instrument(skip(self, proto_msg), fields(sender_ip = %sender_ip))]
+    fn handle_del_msg(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "🗑️ Delete message request from {}: msg_id={}",
+            sender_ip,
+            proto_msg.packet_id
+        );
+        // TODO: Mark message as deleted in database
+        // TODO: Emit Tauri event for frontend update
+        Ok(())
+    }
+
+    /// Handle answer to read message (IPMSG_ANSREADMSG)
+    ///
+    /// Response to a read message confirmation.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message
+    /// * `sender_ip` - Sender's IP address
+    #[instrument(skip(self, proto_msg), fields(sender_ip = %sender_ip))]
+    fn handle_answer_read_msg(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "📨 Read answer from {}: msg_id={}",
+            sender_ip,
+            proto_msg.packet_id
+        );
+        // TODO: Handle read answer confirmation
+        Ok(())
+    }
+
+    /// Handle peer list response (IPMSG_ANSLIST)
+    ///
+    /// Response containing the list of peers.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message containing peer list
+    /// * `sender_ip` - Sender's IP address
+    fn handle_peer_list_response(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "📋 [PEER LIST] Received peer list from {}: count={}",
+            sender_ip,
+            proto_msg.content.lines().count()
+        );
+        // TODO: Parse peer list content and update peer database
+        // Format: Each line contains peer information
+        tracing::debug!("Peer list content:\n{}", proto_msg.content);
+        Ok(())
+    }
+
+    /// Handle user information (IPMSG_SENDINFO)
+    ///
+    /// Response containing user information.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message containing user info
+    /// * `sender_ip` - Sender's IP address
+    fn handle_user_info(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "ℹ️ [USER INFO] User info from {}: {}",
+            sender_ip,
+            proto_msg.content.chars().take(100).collect::<String>()
+        );
+        // TODO: Parse user info and update peer information
+        Ok(())
+    }
+
+    /// Handle absence information (IPMSG_SENDABSENCEINFO)
+    ///
+    /// Response containing absence reason.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message containing absence info
+    /// * `sender_ip` - Sender's IP address
+    fn handle_absence_info(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "🏖️ [ABSENCE] Absence info from {}: {}",
+            sender_ip,
+            proto_msg.content.chars().take(100).collect::<String>()
+        );
+        // TODO: Parse absence info and update peer status
+        Ok(())
+    }
+
+    /// Handle release files notification (IPMSG_RELEASEFILES)
+    ///
+    /// The peer has released file transfer resources.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message
+    /// * `sender_ip` - Sender's IP address
+    fn handle_release_files(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "🔄 [RELEASE] File release notification from {}: msg_id={}",
+            sender_ip,
+            proto_msg.packet_id
+        );
+        // TODO: Clean up file transfer resources
+        // TODO: Emit Tauri event for frontend update
+        Ok(())
+    }
+
+    /// Handle public key response (IPMSG_ANSPUBKEY)
+    ///
+    /// Response containing the peer's public key for encryption.
+    ///
+    /// # Arguments
+    /// * `proto_msg` - Protocol message containing public key
+    /// * `sender_ip` - Sender's IP address
+    fn handle_public_key_response(
+        &self,
+        proto_msg: &ProtocolMessage,
+        sender_ip: IpAddr,
+    ) -> Result<()> {
+        tracing::info!(
+            "🔑 [PUBLIC KEY] Public key received from {}: length={}",
+            sender_ip,
+            proto_msg.content.len()
+        );
+        // TODO: Parse and store public key for encrypted messaging
+        // TODO: Update peer encryption capability
         Ok(())
     }
 

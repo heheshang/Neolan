@@ -158,6 +158,23 @@ export const useEventStore = defineStore("event", () => {
     return on("Error", handler);
   }
 
+  function onMessageReceived(handler: (data: {
+    msg_id: string;
+    sender_ip: string;
+    sender_name: string;
+    content: string;
+    timestamp: number;
+  }) => void) {
+    return on("MessageReceived", handler);
+  }
+
+  function onMessageSent(handler: (data: {
+    msg_id: string;
+    receiver_ip: string;
+  }) => void) {
+    return on("MessageSent", handler);
+  }
+
   // ==================== Return ====================
 
   return {
@@ -187,5 +204,7 @@ export const useEventStore = defineStore("event", () => {
     onConfigChanged,
     onInitialized,
     onError,
+    onMessageReceived,
+    onMessageSent,
   };
 });

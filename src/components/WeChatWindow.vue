@@ -22,23 +22,52 @@
 
     <!-- Messages -->
     <div class="window-messages" ref="messagesContainer">
-      <div v-if="loading" class="loading-state">加载中...</div>
-      <div v-else-if="messages.length === 0" class="empty-state">
-        <p>暂无消息，开始聊天吧</p>
+      <!-- Debug info -->
+      <div style="position: fixed; top: 10px; right: 10px; background: yellow; padding: 10px; z-index: 9999; font-size: 12px;">
+        <div>DEBUG: loading={{ loading }}</div>
+        <div>DEBUG: messages.length={{ messages.length }}</div>
+        <div>DEBUG: peer.ip={{ peer.ip }}</div>
+        <div>DEBUG: should_show_list={{ !loading && messages.length > 0 }}</div>
+        <div v-if="messages.length > 0">DEBUG: first_msg_content={{ messages[0].content }}</div>
+        <div v-if="messages.length > 0">DEBUG: first_msg_id={{ messages[0].msgId }}</div>
+        <div>DEBUG: template_condition_check:</div>
+        <div> - loading={{ loading }}</div>
+        <div> - messages.length===0={{ messages.length === 0 }}</div>
+        <div> - will_show_list={{ !loading && messages.length > 0 }}</div>
       </div>
-      <div v-else class="message-list">
+
+      <!-- FORCE SHOW with inline style -->
+      <div v-if="loading" class="loading-state">加载中... (loading=true)</div>
+      <div v-else-if="messages.length === 0" class="empty-state">
+        <p>暂无消息，开始聊天吧 (loading=false, length=0)</p>
+      </div>
+      <div
+        v-show="!loading && messages.length > 0"
+        class="message-list"
+        :style="{ display: (!loading && messages.length > 0) ? 'flex' : 'none' }"
+      >
+        <div style="background: lime; margin: 5px; padding: 5px; font-size: 20px; font-weight: bold;">
+          MESSAGE LIST RENDERING! Count: {{ messages.length }} (v-show)
+        </div>
         <div
           v-for="msg in messages"
-          :key="msg.id"
+          :key="msg.msgId || msg.id || String(msg.sentAt)"
           class="message-item"
           :class="isSentMessage(msg) ? 'message-sent' : 'message-received'"
         >
+          <div style="background: cyan; margin: 2px; padding: 2px;">RENDERING MSG: {{ msg.msgId }}</div>
           <div class="message-bubble">
             <div class="message-sender" v-if="!isSentMessage(msg)">
               {{ msg.senderName }}
             </div>
             <div class="message-content">{{ msg.content }}</div>
-            <div class="message-time">{{ formatMessageTime(msg.sentAt) }}</div>
+            <div class="message-time">
+              {{ formatMessageTime(msg.sentAt) }}
+              <span style="margin-left: 5px; font-size: 10px; opacity: 0.6;">
+                ({{ isSentMessage(msg) ? '发送' : '接收' }})
+              </span>
+            </div>
+            <div v-if="msg.delivered" class="message-delivered">✓ 已送达</div>
           </div>
         </div>
       </div>
@@ -120,6 +149,16 @@ defineEmits<{
 }>();
 
 const messages = ref<MessageDto[]>([]);
+
+// Watch messages for debugging
+watch(messages, (newVal, oldVal) => {
+  console.log(`🔄 [WeChatWindow] Messages changed:`, {
+    oldCount: oldVal.length,
+    newCount: newVal.length,
+    oldMessages: oldVal,
+    newMessages: newVal
+  });
+}, { deep: true });
 const newMessage = ref('');
 const loading = ref(false);
 const sending = ref(false);
@@ -130,6 +169,7 @@ const selectedFile = ref<File | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 let unlistenMessage: (() => void) | null = null;
+let unlistenReceiptAck: (() => void) | null = null;
 
 // Check if message was sent by us (not received from peer)
 // If receiverIp equals peer.ip, it means we sent this message to the peer
@@ -141,15 +181,29 @@ function formatMessageTime(timestamp: number): string {
 }
 
 async function loadMessages() {
+  console.log(`📥 [WeChatWindow] loadMessages() called for peer: ${props.peer.ip}`);
   loading.value = true;
   try {
     const result = await api.getMessages(props.peer.ip, 50);
-    messages.value = result;
+    console.log(`📥 [WeChatWindow] getMessages returned: ${result.length} messages`);
+    console.log(`📥 [WeChatWindow] Current messages in array: ${messages.value.length}`);
+
+    // Don't overwrite if we already have messages (prevent clearing real-time messages)
+    if (result.length > 0 && messages.value.length === 0) {
+      console.log(`📥 [WeChatWindow] Setting messages from database: ${result.length} messages`);
+      messages.value = result;
+    } else if (result.length === 0) {
+      console.log(`📥 [WeChatWindow] Database returned empty, keeping existing ${messages.value.length} messages`);
+    } else {
+      console.log(`📥 [WeChatWindow] Database has ${result.length} messages, but we already have ${messages.value.length}, skipping`);
+    }
+
     scrollToBottom();
   } catch (err) {
     console.error('Failed to load messages:', err);
   } finally {
     loading.value = false;
+    console.log(`📥 [WeChatWindow] loadMessages() complete, loading=${loading.value}, messages.length=${messages.value.length}`);
   }
 }
 
@@ -204,15 +258,88 @@ async function sendFile() {
 
 async function setupEventListener() {
   try {
-    unlistenMessage = await listen<MessageDto>('message-received', (event) => {
-      const msg = event.payload;
-      if (msg.senderIp === props.peer.ip || msg.receiverIp === props.peer.ip) {
-        messages.value.push(msg);
-        scrollToBottom();
+    console.log(`🎯 [WeChatWindow] Setting up message listener`);
+    console.log(`🎯 [WeChatWindow] props.peer.ip:`, props.peer.ip);
+    console.log(`🎯 [WeChatWindow] props.peer.displayName:`, props.peer.displayName);
+    console.log(`🎯 [WeChatWindow] Full props.peer:`, JSON.stringify(props.peer, null, 2));
+
+    unlistenMessage = await listen<any>('message-received', (event) => {
+      console.log(`📥 [WeChatWindow] ========== NEW MESSAGE ==========`);
+      console.log(`📥 [WeChatWindow] Raw event payload:`, event.payload);
+
+      // Tauri sends the enum variant, so we need to extract the actual message data
+      const payload = event.payload;
+      const messageData = payload.MessageReceived || payload;
+
+      console.log(`📥 [WeChatWindow] Extracted message data:`);
+      console.log(`   msgId: ${messageData.msgId}`);
+      console.log(`   senderIp: ${messageData.senderIp}`);
+      console.log(`   receiverIp: ${messageData.receiverIp}`);
+      console.log(`   currentPeerIp: ${props.peer.ip}`);
+      console.log(`   senderName: ${messageData.senderName}`);
+      console.log(`   content: ${messageData.content}`);
+
+      // TEMPORARY: Accept ALL messages to debug
+      console.log(`✅ [WeChatWindow] ACCEPTING ALL MESSAGES (TEMPORARY DEBUG)`);
+      console.log(`📊 [WeChatWindow] Messages count BEFORE: ${messages.value.length}`);
+
+      // Convert to MessageDto format
+      const msg: MessageDto = {
+        id: messageData.id || 0,
+        msgId: messageData.msgId,
+        senderIp: messageData.senderIp,
+        senderName: messageData.senderName,
+        receiverIp: messageData.receiverIp,
+        msgType: messageData.msgType,
+        content: messageData.content,
+        isEncrypted: messageData.isEncrypted,
+        isOffline: messageData.isOffline,
+        sentAt: messageData.sentAt,
+        receivedAt: messageData.receivedAt,
+        createdAt: messageData.createdAt,
+        delivered: false  // Initialize as not delivered
+      };
+
+      messages.value.push(msg);
+      console.log(`📊 [WeChatWindow] Messages count AFTER: ${messages.value.length}`);
+      console.log(`📊 [WeChatWindow] Last message in array:`, messages.value[messages.value.length - 1]);
+
+      // Force Vue reactivity update
+      messages.value = [...messages.value];
+      console.log(`📊 [WeChatWindow] Forced reactivity update`);
+
+      scrollToBottom();
+    });
+
+    // Listen for message receipt acknowledgments
+    unlistenReceiptAck = await listen<any>('message-receipt-ack', (event) => {
+      console.log(`✅ [WeChatWindow] ========== RECEIPT ACK ==========`);
+      console.log(`✅ [WeChatWindow] Raw event payload:`, event.payload);
+
+      const payload = event.payload;
+      const ackData = payload.MessageReceiptAck || payload;
+
+      console.log(`✅ [WeChatWindow] Receipt ACK details:`);
+      console.log(`   msgId: ${ackData.msgId}`);
+      console.log(`   senderIp: ${ackData.senderIp}`);
+      console.log(`   senderName: ${ackData.senderName}`);
+
+      // Find the message by msgId and mark as delivered
+      const msgIndex = messages.value.findIndex(m => m.msgId === ackData.msgId);
+      if (msgIndex !== -1) {
+        console.log(`✅ [WeChatWindow] Found message at index ${msgIndex}, marking as delivered`);
+        messages.value[msgIndex].delivered = true;
+        // Force reactivity
+        messages.value = [...messages.value];
+        console.log(`✅ [WeChatWindow] Message marked as delivered and UI updated`);
+      } else {
+        console.warn(`⚠️ [WeChatWindow] Message not found: msgId=${ackData.msgId}`);
       }
     });
+
+    console.log(`✅ [WeChatWindow] Message listener setup complete`);
   } catch (err) {
-    console.error('Failed to setup event listener:', err);
+    console.error('❌ [WeChatWindow] Failed to setup event listener:', err);
   }
 }
 
@@ -231,11 +358,17 @@ onUnmounted(() => {
   if (unlistenMessage) {
     unlistenMessage();
   }
+  if (unlistenReceiptAck) {
+    unlistenReceiptAck();
+  }
 });
 
 watch(() => props.peer.ip, async () => {
   if (unlistenMessage) {
     unlistenMessage();
+  }
+  if (unlistenReceiptAck) {
+    unlistenReceiptAck();
   }
   await loadMessages();
   await setupEventListener();
@@ -380,6 +513,14 @@ watch(() => props.peer.ip, async () => {
   color: #999;
   margin-top: 4px;
   text-align: right;
+}
+
+.message-delivered {
+  font-size: 11px;
+  color: #52c41a;  /* Green color for delivered status */
+  margin-top: 2px;
+  text-align: right;
+  font-weight: 500;
 }
 
 /* ==================== Input Area ==================== */

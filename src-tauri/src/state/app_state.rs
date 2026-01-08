@@ -12,9 +12,9 @@ use std::sync::mpsc;
 
 /// Tauri event payload - serializable events that can be emitted to frontend
 #[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "event", content = "data")]
 pub enum TauriEvent {
     /// Message received from peer
+    #[serde(rename = "MessageReceived")]
     MessageReceived {
         id: i32,  // Database ID (0 for real-time messages not yet saved)
         #[serde(rename = "msgId")]
@@ -41,6 +41,7 @@ pub enum TauriEvent {
     },
 
     /// Peer came online
+    #[serde(rename = "PeerOnline")]
     PeerOnline {
         #[serde(rename = "peerIp")]
         peer_ip: String,
@@ -49,12 +50,14 @@ pub enum TauriEvent {
     },
 
     /// Peer went offline
+    #[serde(rename = "PeerOffline")]
     PeerOffline {
         #[serde(rename = "peerIp")]
         peer_ip: String,
     },
 
     /// File transfer request received
+    #[serde(rename = "FileTransferRequest")]
     FileTransferRequest {
         #[serde(rename = "requestId")]
         request_id: String,
@@ -72,7 +75,21 @@ pub enum TauriEvent {
         created_at: i64,
     },
 
+    /// Message receipt acknowledgment received
+    #[serde(rename = "MessageReceiptAck")]
+    MessageReceiptAck {
+        #[serde(rename = "msgId")]
+        msg_id: String,
+        #[serde(rename = "senderIp")]
+        sender_ip: String,
+        #[serde(rename = "senderName")]
+        sender_name: String,
+        #[serde(rename = "acknowledgedAt")]
+        acknowledged_at: i64,
+    },
+
     /// Peers discovered after startup
+    #[serde(rename = "PeersDiscovered")]
     PeersDiscovered {
         #[serde(rename = "peers")]
         peers: Vec<PeerDiscoveredDto>,

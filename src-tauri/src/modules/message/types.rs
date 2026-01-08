@@ -33,6 +33,9 @@ pub enum MessageType {
     /// Read receipt (IPMSG_READMSG)
     ReadReceipt,
 
+    /// Receive acknowledgment (IPMSG_RECVMSG)
+    RecvAck,
+
     /// Unknown message type
     Unknown,
 }
@@ -50,6 +53,7 @@ impl MessageType {
                 Self::Presence
             }
             msg_type::IPMSG_READMSG => Self::ReadReceipt,
+            msg_type::IPMSG_RECVMSG => Self::RecvAck,
             _ => Self::Unknown,
         }
     }
@@ -62,6 +66,7 @@ impl MessageType {
             Self::FileResponse => msg_type::IPMSG_RELEASEFILES,
             Self::Presence => msg_type::IPMSG_BR_ENTRY, // Default to BR_ENTRY
             Self::ReadReceipt => msg_type::IPMSG_READMSG,
+            Self::RecvAck => msg_type::IPMSG_RECVMSG,
             Self::Unknown => msg_type::IPMSG_NOOPERATION,
         }
     }
@@ -184,6 +189,20 @@ impl Message {
     /// This method requires the sender's username and hostname
     /// to be set before calling. Those should come from the app config.
     pub fn to_protocol(&self, sender_name: &str, sender_host: &str) -> ProtocolMessage {
+        self.to_protocol_with_options(sender_name, sender_host, 0)
+    }
+
+    /// A ProtocolMessage with options ready for UDP transmission
+    ///
+    /// # Arguments
+    /// * `sender_name` - Sender's username
+    /// * `sender_host` - Sender's hostname
+    /// * `options` - Protocol options (e.g., IPMSG_SENDCHECKOPT)
+    pub fn to_protocol_with_options(&self, sender_name: &str, sender_host: &str, options: u32) -> ProtocolMessage {
+        // Combine mode and options using make_command
+        let mode = self.msg_type.to_protocol();
+        let msg_type = crate::network::msg_type::make_command(mode, options);
+
         ProtocolMessage {
             version: 1,
             packet_id: self
@@ -192,7 +211,7 @@ impl Message {
                 .unwrap_or_else(|_| Uuid::new_v4().as_u128() as u64),
             sender_name: sender_name.to_string(),
             sender_host: sender_host.to_string(),
-            msg_type: self.msg_type.to_protocol(),
+            msg_type,
             content: self.content.clone(),
         }
     }

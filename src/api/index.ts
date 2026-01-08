@@ -56,6 +56,7 @@ export interface MessageDto {
   sentAt: number;
   receivedAt?: number;
   createdAt: number;
+  delivered?: boolean;  // Message receipt acknowledgment status
 }
 
 // ==================== Peer Commands ====================
