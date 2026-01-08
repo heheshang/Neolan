@@ -137,9 +137,8 @@ async function refreshPeers() {
   await peerStore.fetchPeers();
 }
 
-function selectPeer(peer: PeerDto) {
+function selectPeer(_peer: PeerDto) {
   // TODO: Navigate to chat or show peer details
-  console.log('Selected peer:', peer);
 }
 
 function formatTime(timestamp: number | null): string {
