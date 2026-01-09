@@ -3,6 +3,7 @@ import { RouterView } from "vue-router";
 import { onMounted, onUnmounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { useEventStore } from "./stores/eventStore";
+import UserProfileHeader from "./components/UserProfileHeader.vue";
 
 const eventStore = useEventStore();
 
@@ -39,7 +40,10 @@ onUnmounted(() => {
 
 <template>
   <div class="app">
-    <RouterView />
+    <UserProfileHeader />
+    <div class="app-content">
+      <RouterView />
+    </div>
   </div>
 </template>
 
@@ -68,6 +72,12 @@ onUnmounted(() => {
 
 .app {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
   display: flex;
   flex-direction: column;
 }

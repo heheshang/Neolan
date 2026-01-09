@@ -9,5 +9,4 @@ pub mod handler;
 pub mod types;
 
 pub use handler::MessageHandler;
-pub use types::{Message, MessageType};
 

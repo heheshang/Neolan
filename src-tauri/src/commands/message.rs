@@ -40,9 +40,9 @@ impl From<messages::Model> for MessageDto {
             content: model.content,
             is_encrypted: model.is_encrypted,
             is_offline: model.is_offline,
-            sent_at: model.sent_at.timestamp_millis(),
-            received_at: model.received_at.map(|dt| dt.timestamp_millis()),
-            created_at: model.created_at.timestamp_millis(),
+            sent_at: model.sent_at.and_utc().timestamp_millis(),
+            received_at: model.received_at.map(|dt| dt.and_utc().timestamp_millis()),
+            created_at: model.created_at.and_utc().timestamp_millis(),
         }
     }
 }
@@ -117,7 +117,7 @@ pub async fn send_message(
 
     // Get config for local IP
     let config = state.get_config();
-    let local_ip = config.bind_ip.clone();
+    let _local_ip = config.bind_ip.clone();
 
     // Send message through state
     let msg_id = state.send_message(target_ip, &content)?;
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn test_empty_content_validation() {
         // Empty content should be rejected
-        let peer_ip = "192.168.1.100".to_string();
+        let _peer_ip = "192.168.1.100".to_string();
         let content = "".to_string();
 
         // Just validation test, no actual state needed

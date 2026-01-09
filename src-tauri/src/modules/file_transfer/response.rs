@@ -10,7 +10,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::types::{TransferDirection, TransferStatus, TransferTask};
+use super::types::TransferTask;
 use super::FileTransferManager;
 
 /// Pending file transfer request
@@ -239,6 +239,7 @@ impl FileTransferResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::types::TransferDirection;
     use std::net::Ipv4Addr;
 
     #[test]
@@ -384,7 +385,7 @@ mod tests {
                 file_name,
                 file_size,
                 md5,
-                created_at,
+                created_at: _,
             } => {
                 assert_eq!(request_id, request.id.to_string());
                 assert_eq!(sender_ip, "192.168.1.100");

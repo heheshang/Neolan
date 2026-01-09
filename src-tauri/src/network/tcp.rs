@@ -7,17 +7,20 @@
 // - Receiving file data in chunks
 
 use crate::{NeoLanError, Result};
+use crate::config::AppConfig;
 use std::io::{Read, Write};
-use std::net::IpAddr;
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 
-/// Default buffer size for file transfer (4KB chunks)
-pub const DEFAULT_BUFFER_SIZE: usize = 4096;
+/// Default buffer size for file transfer (re-exported from AppConfig)
+pub const DEFAULT_BUFFER_SIZE: usize = AppConfig::TCP_BUFFER_SIZE;
 
-/// TCP port range for file transfer
-pub const PORT_RANGE_START: u16 = 8000;
-pub const PORT_RANGE_END: u16 = 9000;
+/// TCP port range for file transfer (re-exported from AppConfig)
+pub const PORT_RANGE_START: u16 = AppConfig::DEFAULT_TCP_PORT_START;
+pub const PORT_RANGE_END: u16 = AppConfig::DEFAULT_TCP_PORT_END;
+
+/// Default bind IP address (re-exported from AppConfig)
+pub const DEFAULT_BIND_IP: &str = AppConfig::DEFAULT_BIND_IP;
 
 /// TCP transport wrapper
 ///
@@ -42,7 +45,7 @@ impl TcpTransport {
     /// ```
     pub fn bind_available() -> Result<(TcpListener, u16)> {
         for port in PORT_RANGE_START..PORT_RANGE_END {
-            let addr = format!("0.0.0.0:{}", port);
+            let addr = format!("{}:{}", DEFAULT_BIND_IP, port);
             match TcpListener::bind(&addr) {
                 Ok(listener) => {
                     tracing::info!("TCP listener bound to port {}", port);
@@ -304,7 +307,7 @@ impl TcpTransport {
 mod tests {
     use super::*;
     use std::io::Write;
-    use std::net::Ipv4Addr;
+    use std::net::{IpAddr, Ipv4Addr};
     use std::thread;
     use std::time::Duration;
 

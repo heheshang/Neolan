@@ -6,16 +6,17 @@
 // - Receiving incoming messages
 
 use crate::{NeoLanError, Result};
+use crate::config::AppConfig;
 use std::net::{SocketAddr, UdpSocket};
 
-/// Default UDP port for IPMsg protocol
-pub const DEFAULT_UDP_PORT: u16 = 2421;
+/// Default UDP port for IPMsg protocol (re-exported from AppConfig)
+pub const DEFAULT_UDP_PORT: u16 = AppConfig::DEFAULT_UDP_PORT;
 
-/// Broadcast address for LAN
-const BROADCAST_ADDR: &str = "255.255.255.255";
+/// Broadcast address for LAN (re-exported from AppConfig)
+pub const BROADCAST_ADDR: &str = AppConfig::BROADCAST_ADDR;
 
-/// Default receive buffer size (64KB)
-const DEFAULT_BUFFER_SIZE: usize = 65535;
+/// Default receive buffer size (re-exported from AppConfig)
+pub const DEFAULT_BUFFER_SIZE: usize = AppConfig::UDP_BUFFER_SIZE;
 
 /// UDP transport wrapper
 ///

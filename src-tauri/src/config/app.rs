@@ -3,7 +3,42 @@ use crate::error::{NeoLanError, Result};
 use crate::storage::entities::settings;
 use sea_orm::*;
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
+
+/// 网络配置默认值常量
+impl AppConfig {
+    /// IPMsg 标准默认 UDP 端口
+    pub const DEFAULT_UDP_PORT: u16 = 2425;
+
+    /// TCP 端口范围起始值（用于文件传输）
+    pub const DEFAULT_TCP_PORT_START: u16 = 8000;
+
+    /// TCP 端口范围结束值（用于文件传输）
+    pub const DEFAULT_TCP_PORT_END: u16 = 9000;
+
+    /// 默认绑定 IP 地址（0.0.0.0 表示所有网卡）
+    pub const DEFAULT_BIND_IP: &'static str = "0.0.0.0";
+
+    /// 广播地址（用于 LAN 发现）
+    pub const BROADCAST_ADDR: &'static str = "255.255.255.255";
+
+    /// UDP 接收缓冲区大小（64KB，最大 UDP 包大小）
+    pub const UDP_BUFFER_SIZE: usize = 65535;
+
+    /// TCP 传输缓冲区大小（4KB，用于文件传输）
+    pub const TCP_BUFFER_SIZE: usize = 4096;
+
+    /// 默认心跳间隔（秒）
+    pub const DEFAULT_HEARTBEAT_INTERVAL: u64 = 60;
+
+    /// 默认节点超时时间（秒）
+    pub const DEFAULT_PEER_TIMEOUT: u64 = 180;
+
+    /// 默认离线消息保留天数
+    pub const DEFAULT_OFFLINE_MESSAGE_RETENTION_DAYS: u32 = 30;
+
+    /// 默认日志级别
+    pub const DEFAULT_LOG_LEVEL: &'static str = "info";
+}
 
 /// 应用程序配置
 ///
@@ -51,31 +86,84 @@ pub struct AppConfig {
     pub log_level: String,
 }
 
+impl AppConfig {
+    /// 获取 UDP 接收缓冲区大小
+    pub fn udp_buffer_size(&self) -> usize {
+        Self::UDP_BUFFER_SIZE
+    }
+
+    /// 获取 TCP 传输缓冲区大小
+    pub fn tcp_buffer_size(&self) -> usize {
+        Self::TCP_BUFFER_SIZE
+    }
+
+    /// 获取广播地址
+    pub fn broadcast_addr(&self) -> &'static str {
+        Self::BROADCAST_ADDR
+    }
+
+    /// 验证配置的有效性
+    pub fn validate(&self) -> Result<()> {
+        // 验证 UDP 端口范围
+        if self.udp_port == 0 {
+            return Err(NeoLanError::Validation("UDP port cannot be zero".to_string()));
+        }
+
+        // 验证 TCP 端口范围
+        if self.tcp_port_start >= self.tcp_port_end {
+            return Err(NeoLanError::Validation(
+                "TCP port start must be less than port end".to_string()
+            ));
+        }
+
+        if self.tcp_port_start < 1024 {
+            return Err(NeoLanError::Validation(
+                "TCP port start must be >= 1024 (privileged ports are reserved)".to_string()
+            ));
+        }
+
+        // 验证超时设置
+        if self.peer_timeout <= self.heartbeat_interval {
+            return Err(NeoLanError::Validation(
+                "Peer timeout must be greater than heartbeat interval".to_string()
+            ));
+        }
+
+        // 验证绑定 IP
+        if self.bind_ip.is_empty() {
+            return Err(NeoLanError::Validation("Bind IP cannot be empty".to_string()));
+        }
+
+        Ok(())
+    }
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
             username: whoami::username(),
             hostname: whoami::fallible::hostname().unwrap_or_else(|_| "localhost".to_string()),
-            bind_ip: "0.0.0.0".to_string(),
-            udp_port: 2421,
-            tcp_port_start: 8000,
-            tcp_port_end: 9000,
-            heartbeat_interval: 60,
-            peer_timeout: 180,
+            bind_ip: Self::DEFAULT_BIND_IP.to_string(),
+            udp_port: Self::DEFAULT_UDP_PORT,
+            tcp_port_start: Self::DEFAULT_TCP_PORT_START,
+            tcp_port_end: Self::DEFAULT_TCP_PORT_END,
+            heartbeat_interval: Self::DEFAULT_HEARTBEAT_INTERVAL,
+            peer_timeout: Self::DEFAULT_PEER_TIMEOUT,
             encryption_enabled: false,
             encryption_key: None,
-            offline_message_retention_days: 30,
+            offline_message_retention_days: Self::DEFAULT_OFFLINE_MESSAGE_RETENTION_DAYS,
             auto_accept_files: false,
             file_save_dir: dirs::download_dir()
                 .unwrap_or_else(|| std::path::PathBuf::from("."))
                 .to_string_lossy()
                 .to_string(),
-            log_level: "info".to_string(),
+            log_level: Self::DEFAULT_LOG_LEVEL.to_string(),
         }
     }
 }
 
 /// 配置存储键名常量
+#[allow(dead_code)]
 mod keys {
     pub const CONFIG: &str = "app_config";
 }
@@ -83,11 +171,15 @@ mod keys {
 /// 配置仓库
 ///
 /// 负责从 settings 表加载和保存配置
+///
+/// NOTE: Currently not integrated but intended for future database-backed configuration
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct ConfigRepository {
     db: DatabaseConnection,
 }
 
+#[allow(dead_code)]
 impl ConfigRepository {
     /// 创建新的 ConfigRepository
     pub fn new(db: DatabaseConnection) -> Self {
@@ -255,18 +347,19 @@ mod tests {
     fn test_default_config() {
         let config = AppConfig::default();
 
-        // 验证默认值
+        // 验证默认值使用常量
         assert!(!config.username.is_empty());
         assert!(!config.hostname.is_empty());
-        assert_eq!(config.udp_port, 2425);
-        assert_eq!(config.tcp_port_start, 8000);
-        assert_eq!(config.tcp_port_end, 9000);
-        assert_eq!(config.heartbeat_interval, 60);
-        assert_eq!(config.peer_timeout, 180);
-        assert_eq!(config.offline_message_retention_days, 30);
+        assert_eq!(config.udp_port, AppConfig::DEFAULT_UDP_PORT);
+        assert_eq!(config.tcp_port_start, AppConfig::DEFAULT_TCP_PORT_START);
+        assert_eq!(config.tcp_port_end, AppConfig::DEFAULT_TCP_PORT_END);
+        assert_eq!(config.heartbeat_interval, AppConfig::DEFAULT_HEARTBEAT_INTERVAL);
+        assert_eq!(config.peer_timeout, AppConfig::DEFAULT_PEER_TIMEOUT);
+        assert_eq!(config.offline_message_retention_days, AppConfig::DEFAULT_OFFLINE_MESSAGE_RETENTION_DAYS);
         assert!(!config.encryption_enabled);
         assert!(!config.auto_accept_files);
-        assert_eq!(config.log_level, "info");
+        assert_eq!(config.log_level, AppConfig::DEFAULT_LOG_LEVEL);
+        assert_eq!(config.bind_ip, AppConfig::DEFAULT_BIND_IP);
     }
 
     #[test]
@@ -285,13 +378,58 @@ mod tests {
 
     #[test]
     fn test_config_validation() {
-        let mut config = AppConfig::default();
+        let config = AppConfig::default();
 
-        // 验证端口范围
-        assert!(config.tcp_port_start < config.tcp_port_end);
-        assert!(config.udp_port > 0);
+        // 默认配置应该通过验证
+        assert!(config.validate().is_ok());
 
-        // 验证超时设置
-        assert!(config.peer_timeout > config.heartbeat_interval);
+        // 测试无效的 UDP 端口
+        let mut invalid_config = config.clone();
+        invalid_config.udp_port = 0;
+        assert!(invalid_config.validate().is_err());
+
+        // 测试无效的 TCP 端口范围
+        let mut invalid_config = config.clone();
+        invalid_config.tcp_port_start = 9000;
+        invalid_config.tcp_port_end = 8000;
+        assert!(invalid_config.validate().is_err());
+
+        // 测试特权端口
+        let mut invalid_config = config.clone();
+        invalid_config.tcp_port_start = 80;
+        assert!(invalid_config.validate().is_err());
+
+        // 测试无效的超时设置
+        let mut invalid_config = config.clone();
+        invalid_config.peer_timeout = 30;
+        invalid_config.heartbeat_interval = 60;
+        assert!(invalid_config.validate().is_err());
+
+        // 测试空的绑定 IP
+        let mut invalid_config = config;
+        invalid_config.bind_ip = String::new();
+        assert!(invalid_config.validate().is_err());
+    }
+
+    #[test]
+    fn test_network_config_constants() {
+        // 测试常量值的一致性
+        assert_eq!(AppConfig::DEFAULT_UDP_PORT, 2425);
+        assert_eq!(AppConfig::DEFAULT_TCP_PORT_START, 8000);
+        assert_eq!(AppConfig::DEFAULT_TCP_PORT_END, 9000);
+        assert_eq!(AppConfig::UDP_BUFFER_SIZE, 65535);
+        assert_eq!(AppConfig::TCP_BUFFER_SIZE, 4096);
+        assert_eq!(AppConfig::BROADCAST_ADDR, "255.255.255.255");
+        assert_eq!(AppConfig::DEFAULT_BIND_IP, "0.0.0.0");
+    }
+
+    #[test]
+    fn test_config_helper_methods() {
+        let config = AppConfig::default();
+
+        // 测试辅助方法
+        assert_eq!(config.udp_buffer_size(), AppConfig::UDP_BUFFER_SIZE);
+        assert_eq!(config.tcp_buffer_size(), AppConfig::TCP_BUFFER_SIZE);
+        assert_eq!(config.broadcast_addr(), AppConfig::BROADCAST_ADDR);
     }
 }

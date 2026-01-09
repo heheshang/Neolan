@@ -5,6 +5,5 @@ pub mod manager;
 pub mod response;
 
 // Re-export commonly used types
-pub use types::{TransferDirection, TransferStatus, TransferTask};
 pub use manager::FileTransferManager;
-pub use response::{FileTransferResponse, PendingRequest};
+pub use response::FileTransferResponse;

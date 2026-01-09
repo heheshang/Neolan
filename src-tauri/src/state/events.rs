@@ -4,8 +4,6 @@
 
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
-use std::sync::Mutex;
-use std::time::SystemTime;
 
 /// Application event
 ///

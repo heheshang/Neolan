@@ -26,6 +26,11 @@ const routes: RouteRecordRaw[] = [
     name: "FileTransfers",
     component: () => import("../views/FileTransfersView.vue"),
   },
+  {
+    path: "/profile",
+    name: "UserProfile",
+    component: () => import("../views/UserProfileView.vue"),
+  },
 ];
 
 const router = createRouter({

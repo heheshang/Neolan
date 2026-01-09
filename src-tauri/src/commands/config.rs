@@ -19,6 +19,10 @@ pub struct ConfigDto {
     /// User profile
     pub username: String,
     pub hostname: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
 
     /// Network settings
     pub bind_ip: String,
@@ -57,6 +61,8 @@ impl ConfigDto {
         Self {
             username: config.username.clone(),
             hostname: config.hostname.clone(),
+            avatar: None,
+            status: None,
             bind_ip: config.bind_ip.clone(),
             udp_port: config.udp_port,
             tcp_port_start: config.tcp_port_start,
@@ -100,6 +106,8 @@ impl ConfigDto {
                 .get("hostname")
                 .cloned()
                 .unwrap_or_else(|| whoami::fallible::hostname().unwrap_or_else(|_| "localhost".to_string())),
+            avatar: map.get("avatar").cloned(),
+            status: map.get("status").cloned(),
             bind_ip: map.get("bind_ip").cloned().unwrap_or_else(|| "0.0.0.0".to_string()),
             udp_port: map
                 .get("udp_port")
@@ -245,6 +253,8 @@ impl Default for ConfigDto {
             username: whoami::username(),
             hostname: whoami::fallible::hostname()
                 .unwrap_or_else(|_| "localhost".to_string()),
+            avatar: None,
+            status: None,
             bind_ip: "0.0.0.0".to_string(),
             udp_port: 2425,
             tcp_port_start: 8000,

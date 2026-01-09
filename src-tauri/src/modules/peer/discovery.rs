@@ -5,7 +5,7 @@
 // - Listening for peer announcements
 // - Processing incoming discovery messages
 
-use crate::{NeoLanError, Result};
+use crate::Result;
 use crate::network::{UdpTransport, serialize_message, ProtocolMessage, msg_type};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};

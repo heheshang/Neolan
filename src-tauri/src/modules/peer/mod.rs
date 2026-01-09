@@ -6,7 +6,5 @@ pub mod manager;
 pub mod heartbeat;
 
 // Re-export commonly used types
-pub use discovery::PeerDiscovery;
-pub use types::{PeerNode, PeerStatus, PeerInfo, PeerEvent};
+pub use types::PeerNode;
 pub use manager::PeerManager;
-pub use heartbeat::HeartbeatMonitor;

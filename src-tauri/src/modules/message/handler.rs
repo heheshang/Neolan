@@ -24,9 +24,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tracing::instrument;
 
-/// Default UDP port for IPMsg protocol
-const DEFAULT_UDP_PORT: u16 = 2425;
-
 /// Message handler
 ///
 /// Handles sending and receiving messages over UDP using the IPMsg protocol.
@@ -219,7 +216,7 @@ impl MessageHandler {
         tracing::debug!("Sending {:?} message to {}", msg_type, target_ip);
 
         // Create target and sender peer info
-        let target_peer = PeerInfo::new(target_ip, DEFAULT_UDP_PORT, None);
+        let target_peer = PeerInfo::new(target_ip, AppConfig::DEFAULT_UDP_PORT, None);
         let sender_peer = PeerInfo::new(
             self.config.bind_ip.parse().map_err(|_| {
                 NeoLanError::Config(format!("Invalid bind IP: {}", self.config.bind_ip))
@@ -242,7 +239,7 @@ impl MessageHandler {
         // Convert and send
         let proto_msg = message.to_protocol(&self.config.username, &self.config.hostname);
         let bytes = serialize_message(&proto_msg)?;
-        let target_addr = SocketAddr::new(target_ip, DEFAULT_UDP_PORT);
+        let target_addr = SocketAddr::new(target_ip, AppConfig::DEFAULT_UDP_PORT);
         self.udp.send_to(&bytes, target_addr)?;
 
         Ok(())

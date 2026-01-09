@@ -9,7 +9,7 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
-use super::types::{TransferDirection, TransferStatus, TransferTask};
+use super::types::{TransferStatus, TransferTask};
 
 /// File transfer manager
 ///

@@ -24,6 +24,8 @@ export interface PeerStats {
 export interface ConfigDto {
   username: string;
   hostname: string;
+  avatar?: string | null;
+  status?: string;
   bindIp: string;
   udpPort: number;
   tcpPortStart: number;

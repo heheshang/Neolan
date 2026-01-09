@@ -1,4 +1,4 @@
 // Configuration management
 pub mod app;
 
-pub use app::{AppConfig, ConfigRepository};
+pub use app::AppConfig;

@@ -5,9 +5,9 @@
 // - Detecting offline peers (no heartbeat within timeout)
 // - Maintaining peer online status
 
-use crate::{network::ProtocolMessage, Result};
+use crate::Result;
+use crate::config::AppConfig;
 use crate::modules::peer::{types::PeerNode, discovery::PeerDiscovery};
-use crate::network::msg_type;
 use std::collections::HashMap;
 use std::io::{self, Error as IoError, ErrorKind};
 use std::net::{IpAddr, SocketAddr};
@@ -15,11 +15,11 @@ use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, SystemTime};
 use tracing::{info, warn, debug};
 
-/// Default heartbeat send interval (30 seconds)
-const DEFAULT_HEARTBEAT_INTERVAL: u64 = 30;
+/// Default heartbeat send interval (from AppConfig)
+const DEFAULT_HEARTBEAT_INTERVAL: u64 = AppConfig::DEFAULT_HEARTBEAT_INTERVAL;
 
-/// Default peer timeout (60 seconds)
-const DEFAULT_PEER_TIMEOUT: u64 = 60;
+/// Default peer timeout (from AppConfig)
+const DEFAULT_PEER_TIMEOUT: u64 = AppConfig::DEFAULT_PEER_TIMEOUT;
 
 /// Convert lock poison error to io error
 fn lock_error<T>(_: PoisonError<T>) -> io::Error {

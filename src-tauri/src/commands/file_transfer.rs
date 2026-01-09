@@ -1,12 +1,6 @@
 // File transfer commands - handle file transfer requests from frontend
-use crate::config::AppConfig;
-use crate::modules::file_transfer::FileTransferManager;
-use crate::modules::file_transfer::response::FileTransferResponse;
-use crate::network::UdpTransport;
 use crate::state::AppState;
 use crate::{NeoLanError, Result};
-use std::net::IpAddr;
-use std::sync::Arc;
 use tauri::State;
 use uuid::Uuid;
 
@@ -23,8 +17,8 @@ use uuid::Uuid;
 #[tauri::command]
 pub fn accept_file_transfer(
     request_id: String,
-    tcp_port: u16,
-    state: State<'_, AppState>,
+    _tcp_port: u16,
+    _state: State<'_, AppState>,
 ) -> Result<String> {
     tracing::info!("Accepting file transfer request: {}", request_id);
 
@@ -63,12 +57,12 @@ pub fn accept_file_transfer(
 #[tauri::command]
 pub fn reject_file_transfer(
     request_id: String,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
 ) -> Result<()> {
     tracing::info!("Rejecting file transfer request: {}", request_id);
 
     // Parse request ID
-    let uuid = Uuid::parse_str(&request_id).map_err(|_| {
+    let _uuid = Uuid::parse_str(&request_id).map_err(|_| {
         NeoLanError::Validation(format!("Invalid request ID: {}", request_id))
     })?;
 
@@ -91,7 +85,7 @@ pub fn reject_file_transfer(
 /// # Returns
 /// * `Vec<TaskDto>` - List of all transfer tasks
 #[tauri::command]
-pub fn get_file_transfers(state: State<'_, AppState>) -> Vec<TaskDto> {
+pub fn get_file_transfers(_state: State<'_, AppState>) -> Vec<TaskDto> {
     // TODO: Return all transfer tasks from FileTransferManager
     // For now, return empty list
     tracing::warn!("get_file_transfers not fully implemented");
@@ -108,10 +102,10 @@ pub fn get_file_transfers(state: State<'_, AppState>) -> Vec<TaskDto> {
 /// * `Ok(())` - Task cancelled successfully
 /// * `Err(String)` - Cancel failed
 #[tauri::command]
-pub fn cancel_file_transfer(task_id: String, state: State<'_, AppState>) -> Result<()> {
+pub fn cancel_file_transfer(task_id: String, _state: State<'_, AppState>) -> Result<()> {
     tracing::info!("Cancelling file transfer task: {}", task_id);
 
-    let uuid = Uuid::parse_str(&task_id).map_err(|_| {
+    let _uuid = Uuid::parse_str(&task_id).map_err(|_| {
         NeoLanError::Validation(format!("Invalid task ID: {}", task_id))
     })?;
 
