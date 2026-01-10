@@ -40,7 +40,7 @@
             :class="{ error: errors.username }"
             @blur="validateField('username')"
             @keydown.enter="handleSave"
-            placeholder="ENTER_USERNAME"
+            placeholder="Username"
             maxlength="50"
           />
           <span v-if="errors.username" class="field-error">{{ errors.username }}</span>
@@ -58,7 +58,7 @@
             :class="{ error: errors.hostname }"
             @blur="validateField('hostname')"
             @keydown.enter="handleSave"
-            placeholder="SYSTEM_HOSTNAME"
+            placeholder="Hostname"
             maxlength="50"
           />
           <span v-if="errors.hostname" class="field-error">{{ errors.hostname }}</span>
@@ -75,7 +75,7 @@
             class="cyber-textarea"
             :class="{ error: errors.status }"
             @blur="validateField('status')"
-            placeholder="What's on your mind?"
+            placeholder="Your status"
             rows="3"
             maxlength="200"
           />
@@ -282,68 +282,44 @@ onUnmounted(() => {
 
 <style scoped>
 .profile-edit-card {
-  --neon-cyan: #00f3ff;
-  --neon-magenta: #ff00ff;
-  --neon-green: #00ff88;
-  --neon-red: #ff3366;
-  --bg-dark: #0a0a12;
-  --bg-darker: #050508;
-  --bg-panel: rgba(18, 18, 26, 0.95);
-  --border-dim: #2a2a3a;
-  --border-bright: #3a3a4a;
-  --text-primary: #e0e0ff;
-  --text-secondary: #8888aa;
-  --text-muted: #4a4a5a;
-
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border-dim);
-  border-radius: 8px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   position: relative;
-}
-
-.profile-edit-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--neon-magenta), transparent);
-  opacity: 0.5;
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  background: rgba(255, 0, 255, 0.05);
-  border-bottom: 1px solid var(--border-dim);
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  background: var(--color-bg-tertiary);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .card-icon {
   font-size: 16px;
-  color: var(--neon-magenta);
-  text-shadow: 0 0 10px var(--neon-magenta);
+  color: var(--color-primary);
 }
 
 .card-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--neon-magenta);
-  letter-spacing: 2px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  letter-spacing: var(--letter-spacing-normal);
   margin: 0;
 }
 
 .card-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, var(--border-dim), transparent);
+  background: linear-gradient(90deg, var(--color-border-subtle), transparent);
 }
 
 .card-body {
-  padding: 24px;
+  padding: var(--spacing-6);
 }
 
 /* Avatar Section */
@@ -351,15 +327,15 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-6);
 }
 
 .avatar-display {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-2);
 }
 
 .avatar-display.clickable {
@@ -368,7 +344,7 @@ onUnmounted(() => {
 
 .avatar-display.clickable:hover .avatar-large {
   transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(255, 0, 255, 0.5);
+  box-shadow: var(--shadow-primary);
 }
 
 .avatar-large {
@@ -378,18 +354,18 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(0, 243, 255, 0.1), rgba(255, 0, 255, 0.1));
-  border: 2px solid var(--border-dim);
-  border-radius: 12px;
-  transition: all 0.3s ease;
+  background: var(--gradient-primary-subtle);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  transition: all var(--transition-normal);
 }
 
 .avatar-hint {
-  font-size: 10px;
-  color: var(--text-secondary);
-  letter-spacing: 1px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--letter-spacing-normal);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-fast);
 }
 
 .avatar-display.clickable:hover .avatar-hint {
@@ -400,135 +376,136 @@ onUnmounted(() => {
 .edit-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: var(--spacing-5);
+  margin-bottom: var(--spacing-6);
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-2);
 }
 
 .field-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 1px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--letter-spacing-normal);
 }
 
 .label-required {
-  color: var(--neon-red);
+  color: var(--color-error);
 }
 
 .label-hint-inline {
-  color: var(--text-muted);
-  font-size: 9px;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
 }
 
 .cyber-input {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--border-dim);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  letter-spacing: var(--letter-spacing-normal);
+  transition: all var(--transition-fast);
   outline: none;
 }
 
 .cyber-input:hover {
-  border-color: var(--border-bright);
+  border-color: var(--color-border-strong);
 }
 
 .cyber-input:focus {
-  border-color: var(--neon-magenta);
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3), inset 0 0 10px rgba(255, 0, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
 
 .cyber-input.error {
-  border-color: var(--neon-red);
-  box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px var(--color-error-light);
 }
 
 .cyber-textarea {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--border-dim);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  letter-spacing: var(--letter-spacing-normal);
+  transition: all var(--transition-fast);
   outline: none;
   resize: vertical;
   min-height: 80px;
 }
 
 .cyber-textarea:hover {
-  border-color: var(--border-bright);
+  border-color: var(--color-border-strong);
 }
 
 .cyber-textarea:focus {
-  border-color: var(--neon-magenta);
-  box-shadow: 0 0 15px rgba(255, 0, 255, 0.3), inset 0 0 10px rgba(255, 0, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
 
 .cyber-textarea.error {
-  border-color: var(--neon-red);
-  box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px var(--color-error-light);
 }
 
 .field-error {
-  font-size: 10px;
-  color: var(--neon-red);
-  letter-spacing: 1px;
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+  letter-spacing: var(--letter-spacing-normal);
 }
 
 /* Action Buttons */
 .edit-actions {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-3);
   justify-content: center;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-dim);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .cyber-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-6);
   border: 1px solid;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-normal);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   outline: none;
   min-width: 140px;
 }
 
 .save-btn {
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 255, 136, 0.05));
-  border-color: var(--neon-green);
-  color: var(--neon-green);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .save-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.1));
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  box-shadow: var(--shadow-primary);
   transform: translateY(-1px);
 }
 
@@ -538,15 +515,16 @@ onUnmounted(() => {
 }
 
 .cancel-btn {
-  background: linear-gradient(135deg, rgba(136, 136, 170, 0.1), rgba(136, 136, 170, 0.05));
-  border-color: var(--text-secondary);
-  color: var(--text-secondary);
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 .cancel-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(136, 136, 170, 0.2), rgba(136, 136, 170, 0.1));
-  border-color: var(--text-primary);
-  color: var(--text-primary);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
+  transform: translateY(-1px);
 }
 
 .btn-icon {
@@ -554,7 +532,7 @@ onUnmounted(() => {
 }
 
 .btn-text {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 
 .btn-spinner {
@@ -562,7 +540,7 @@ onUnmounted(() => {
   height: 14px;
   border: 2px solid transparent;
   border-top-color: currentColor;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   animation: spin 0.8s linear infinite;
 }
 
@@ -573,26 +551,27 @@ onUnmounted(() => {
 /* Keyboard Hint */
 .keyboard-hint {
   text-align: center;
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
-  margin-top: 16px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  letter-spacing: var(--letter-spacing-normal);
+  margin-top: var(--spacing-4);
 }
 
 .hint-key {
   display: inline-block;
-  padding: 2px 6px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-dim);
-  border-radius: 3px;
-  font-family: 'Courier New', monospace;
-  color: var(--text-secondary);
+  padding: 2px var(--spacing-2);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .card-body {
-    padding: 16px;
+    padding: var(--spacing-4);
   }
 
   .edit-actions {

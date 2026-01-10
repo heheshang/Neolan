@@ -6,12 +6,8 @@
     <!-- Header -->
     <header class="settings-header">
       <div class="header-content">
-        <h1 class="page-title">
-          <span class="title-bracket">[</span>
-          <span class="title-text">SYSTEM CONFIG</span>
-          <span class="title-bracket">]</span>
-        </h1>
-        <p class="page-subtitle">// NEURAL NETWORK PARAMETERS</p>
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Configure your application</p>
       </div>
     </header>
 
@@ -26,7 +22,7 @@
       <!-- Loading state -->
       <div v-if="configStore.loading && !localConfig" class="loading-state">
         <div class="loading-spinner"></div>
-        <p class="loading-text">INITIALIZING CONFIGURATION MODULE...</p>
+        <p class="loading-text">Loading settings...</p>
       </div>
 
       <!-- Settings Tabs -->
@@ -81,7 +77,7 @@
           >
             <span v-if="!configStore.saving" class="btn-icon">✓</span>
             <span v-else class="btn-spinner"></span>
-            <span class="btn-text">{{ configStore.saving ? 'SAVING...' : 'SAVE CONFIG' }}</span>
+            <span class="btn-text">{{ configStore.saving ? 'Saving...' : 'Save Changes' }}</span>
           </button>
           <button
             @click="handleReset"
@@ -89,7 +85,7 @@
             :disabled="configStore.saving"
           >
             <span class="btn-icon">↺</span>
-            <span class="btn-text">RESET DEFAULTS</span>
+            <span class="btn-text">Reset to Defaults</span>
           </button>
         </div>
       </div>
@@ -330,53 +326,20 @@ onUnmounted(() => {
 
 <style scoped>
 .settings-container {
-  --neon-cyan: #00f3ff;
-  --neon-magenta: #ff00ff;
-  --neon-green: #00ff88;
-  --neon-red: #ff3366;
-  --bg-dark: #0a0a12;
-  --bg-darker: #050508;
-  --bg-panel: rgba(18, 18, 26, 0.95);
-  --border-dim: #2a2a3a;
-  --border-bright: #3a3a4a;
-  --text-primary: #e0e0ff;
-  --text-secondary: #8888aa;
-  --text-muted: #4a4a5a;
-
   min-height: 100vh;
-  background: var(--bg-dark);
-  color: var(--text-primary);
-  font-family: 'Courier New', monospace;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
   position: relative;
-}
-
-/* Scanline Overlay */
-.scanline-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 100;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.1) 0px,
-    rgba(0, 0, 0, 0.1) 1px,
-    transparent 1px,
-    transparent 2px
-  );
-  opacity: 0.3;
 }
 
 /* Header */
 .settings-header {
   position: relative;
   z-index: 1;
-  background: var(--bg-panel);
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid var(--border-dim);
-  padding: 24px 32px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding: var(--spacing-6) var(--spacing-8);
 }
 
 .header-content {
@@ -388,37 +351,28 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--neon-cyan);
-  text-shadow: 0 0 20px var(--neon-cyan), 0 0 40px rgba(0, 243, 255, 0.5);
-  margin: 0 0 8px 0;
-  letter-spacing: 3px;
-}
-
-.title-bracket {
-  animation: title-pulse 2s ease-in-out infinite alternate;
-}
-
-@keyframes title-pulse {
-  0% { opacity: 0.5; }
-  100% { opacity: 1; }
+  gap: var(--spacing-3);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--spacing-2) 0;
+  letter-spacing: var(--letter-spacing-tight);
 }
 
 .page-subtitle {
   text-align: center;
-  font-size: 10px;
-  color: var(--text-secondary);
-  letter-spacing: 2px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--letter-spacing-wide);
   margin: 0;
+  text-transform: uppercase;
 }
 
 /* Main Content */
 .settings-main {
   position: relative;
   z-index: 1;
-  padding: 32px;
+  padding: var(--spacing-8);
   max-width: 900px;
   margin: 0 auto;
 }
@@ -428,18 +382,18 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 80px 40px;
+  padding: 80px var(--spacing-10);
   text-align: center;
 }
 
 .loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 3px solid var(--border-dim);
-  border-top-color: var(--neon-cyan);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 24px;
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--color-border-subtle);
+  border-top-color: var(--color-primary);
+  border-radius: var(--radius-full);
+  animation: spin 0.8s linear infinite;
+  margin-bottom: var(--spacing-6);
 }
 
 @keyframes spin {
@@ -447,27 +401,21 @@ onUnmounted(() => {
 }
 
 .loading-text {
-  font-size: 12px;
-  color: var(--text-secondary);
-  letter-spacing: 2px;
-  animation: blink 1.5s ease-in-out infinite;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 /* Tab Content */
 .tab-content {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: var(--spacing-8);
 }
 
 .tab-enter-active,
 .tab-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
 }
 
 .tab-enter-from {
@@ -483,39 +431,40 @@ onUnmounted(() => {
 /* Action Buttons */
 .action-bar {
   display: flex;
-  gap: 16px;
+  gap: var(--spacing-4);
   justify-content: center;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-dim);
+  padding-top: var(--spacing-4);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .cyber-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 14px 32px;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-8);
   border: 1px solid;
-  border-radius: 4px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 2px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-wide);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   outline: none;
   min-width: 180px;
 }
 
 .save-btn {
-  background: linear-gradient(135deg, rgba(0, 243, 255, 0.1), rgba(0, 243, 255, 0.05));
-  border-color: var(--neon-cyan);
-  color: var(--neon-cyan);
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-text-inverse);
 }
 
 .save-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(0, 243, 255, 0.1));
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.5);
+  background: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  box-shadow: var(--shadow-primary);
   transform: translateY(-2px);
 }
 
@@ -525,14 +474,15 @@ onUnmounted(() => {
 }
 
 .reset-btn {
-  background: linear-gradient(135deg, rgba(255, 0, 255, 0.1), rgba(255, 0, 255, 0.05));
-  border-color: var(--neon-magenta);
-  color: var(--neon-magenta);
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-secondary);
 }
 
 .reset-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255, 0, 255, 0.2), rgba(255, 0, 255, 0.1));
-  box-shadow: 0 0 25px rgba(255, 0, 255, 0.5);
+  background: var(--color-bg-tertiary);
+  border-color: var(--color-border-strong);
+  color: var(--color-text-primary);
   transform: translateY(-2px);
 }
 
@@ -541,7 +491,7 @@ onUnmounted(() => {
 }
 
 .btn-text {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .btn-spinner {
@@ -549,58 +499,51 @@ onUnmounted(() => {
   height: 16px;
   border: 2px solid transparent;
   border-top-color: currentColor;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   animation: spin 0.8s linear infinite;
 }
 
 /* Toast Notification */
 .toast-notification {
   position: fixed;
-  bottom: 32px;
-  right: 32px;
+  bottom: var(--spacing-8);
+  right: var(--spacing-8);
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px 24px;
-  border-radius: 4px;
-  z-index: 1000;
-  animation: slide-in 0.3s ease-out;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-6);
+  border-radius: var(--radius-md);
+  z-index: var(--z-notification);
+  animation: slideIn var(--transition-normal) ease-out;
+  box-shadow: var(--shadow-lg);
 }
 
 .toast-notification.success {
-  background: rgba(0, 255, 136, 0.1);
-  border: 1px solid var(--neon-green);
-  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  background: var(--color-success-light);
+  border: 1px solid var(--color-success);
+  color: var(--color-success);
 }
 
 .toast-notification.error {
-  background: rgba(255, 51, 102, 0.1);
-  border: 1px solid var(--neon-red);
-  box-shadow: 0 0 20px rgba(255, 51, 102, 0.4);
+  background: var(--color-error-light);
+  border: 1px solid var(--color-error);
+  color: var(--color-error);
 }
 
 .toast-icon {
   font-size: 18px;
 }
 
-.toast-notification.success .toast-icon {
-  color: var(--neon-green);
-}
-
-.toast-notification.error .toast-icon {
-  color: var(--neon-red);
-}
-
 .toast-message {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-normal);
+  color: var(--color-text-primary);
 }
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
 }
 
 .toast-enter-from,
@@ -609,29 +552,18 @@ onUnmounted(() => {
   transform: translateX(100px);
 }
 
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(100px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 /* Responsive */
 @media (max-width: 768px) {
   .settings-header {
-    padding: 20px 16px;
+    padding: var(--spacing-5) var(--spacing-4);
   }
 
   .page-title {
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
   }
 
   .settings-main {
-    padding: 20px 16px;
+    padding: var(--spacing-5) var(--spacing-4);
   }
 
   .action-bar {
@@ -643,9 +575,9 @@ onUnmounted(() => {
   }
 
   .toast-notification {
-    right: 16px;
-    left: 16px;
-    bottom: 16px;
+    right: var(--spacing-4);
+    left: var(--spacing-4);
+    bottom: var(--spacing-4);
   }
 }
 </style>

@@ -129,30 +129,41 @@ function getLastMessage(peer: PeerDto): string {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--color-bg-secondary);
 }
 
 /* ==================== Header ==================== */
 .list-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid #e7e7e7;
+  padding: var(--spacing-3) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .header-search {
   position: relative;
-  background: #f5f5f5;
-  border-radius: 6px;
-  padding: 8px 12px;
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-2);
+  transition: all var(--transition-fast);
+}
+
+.header-search:focus-within {
+  background: var(--color-bg-elevated);
+  box-shadow: var(--shadow-sm);
 }
 
 .search-icon {
   width: 16px;
   height: 16px;
-  color: #999;
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+.header-search:focus-within .search-icon {
+  color: var(--color-primary);
 }
 
 .search-input {
@@ -160,12 +171,13 @@ function getLastMessage(peer: PeerDto): string {
   border: none;
   background: transparent;
   outline: none;
-  font-size: 14px;
-  color: #333;
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
 }
 
 .search-input::placeholder {
-  color: #999;
+  color: var(--color-text-tertiary);
 }
 
 /* ==================== List Content ==================== */
@@ -176,18 +188,20 @@ function getLastMessage(peer: PeerDto): string {
 
 .conversation-item {
   display: flex;
-  padding: 12px 16px;
+  padding: var(--spacing-3) var(--spacing-4);
   cursor: pointer;
-  transition: background 0.2s;
-  gap: 12px;
+  transition: all var(--transition-fast);
+  gap: var(--spacing-3);
+  border-bottom: 1px solid transparent;
 }
 
 .conversation-item:hover {
-  background: #f5f5f5;
+  background: var(--color-bg-tertiary);
 }
 
 .conversation-item.active {
-  background: #e7e7e7;
+  background: var(--color-primary-subtle);
+  border-bottom-color: var(--color-primary-subtle);
 }
 
 /* ==================== Avatar ==================== */
@@ -195,18 +209,25 @@ function getLastMessage(peer: PeerDto): string {
   position: relative;
   width: 48px;
   height: 48px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #07C160, #06AE56);
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.conversation-item:hover .conversation-avatar {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-md);
 }
 
 .avatar-text {
   font-size: 20px;
-  font-weight: 600;
-  color: #fff;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-inverse);
 }
 
 .online-dot {
@@ -215,9 +236,10 @@ function getLastMessage(peer: PeerDto): string {
   right: -2px;
   width: 12px;
   height: 12px;
-  background: #07C160;
-  border: 2px solid #fff;
-  border-radius: 50%;
+  background: var(--color-online);
+  border: 2px solid var(--color-bg-secondary);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-xs);
 }
 
 /* ==================== Content ==================== */
@@ -227,7 +249,7 @@ function getLastMessage(peer: PeerDto): string {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  gap: var(--spacing-1);
 }
 
 .conversation-top {
@@ -237,17 +259,22 @@ function getLastMessage(peer: PeerDto): string {
 }
 
 .conversation-name {
-  font-size: 15px;
-  font-weight: 500;
-  color: #333;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.conversation-item.active .conversation-name {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
 .conversation-time {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
 
@@ -257,8 +284,8 @@ function getLastMessage(peer: PeerDto): string {
 }
 
 .conversation-preview {
-  font-size: 13px;
-  color: #999;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -270,92 +297,43 @@ function getLastMessage(peer: PeerDto): string {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 20px;
-  gap: 12px;
+  padding: var(--spacing-12) var(--spacing-5);
+  gap: var(--spacing-3);
 }
 
 .empty-icon {
   font-size: 48px;
-  opacity: 0.5;
+  opacity: 0.3;
 }
 
 .empty-text {
-  font-size: 14px;
-  color: #999;
+  font-size: var(--font-size-base);
+  color: var(--color-text-tertiary);
   margin: 0;
 }
 
-/* ==================== Scrollbar ==================== */
-.list-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.list-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.list-content::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
-}
-
-.list-content::-webkit-scrollbar-thumb:hover {
-  background: #999;
-}
-
-/* ==================== Dark Mode ==================== */
-@media (prefers-color-scheme: dark) {
-  .conversation-list {
-    background: #2a2a2a;
-  }
-
+/* ==================== Responsive ==================== */
+@media (max-width: 768px) {
   .list-header {
-    border-bottom-color: #3a3a3a;
+    padding: var(--spacing-2) var(--spacing-3);
   }
 
-  .header-search {
-    background: #3a3a3a;
+  .conversation-item {
+    padding: var(--spacing-2) var(--spacing-3);
+    gap: var(--spacing-2);
   }
 
-  .search-input {
-    color: #e0e0e0;
+  .conversation-avatar {
+    width: 42px;
+    height: 42px;
   }
 
-  .search-input::placeholder {
-    color: #888;
-  }
-
-  .conversation-item:hover {
-    background: #3a3a3a;
-  }
-
-  .conversation-item.active {
-    background: #4a4a4a;
+  .avatar-text {
+    font-size: 18px;
   }
 
   .conversation-name {
-    color: #e0e0e0;
-  }
-
-  .conversation-preview,
-  .conversation-time {
-    color: #888;
-  }
-
-  .online-dot {
-    border-color: #2a2a2a;
-  }
-
-  .empty-text {
-    color: #888;
-  }
-
-  .list-content::-webkit-scrollbar-thumb {
-    background: #555;
-  }
-
-  .list-content::-webkit-scrollbar-thumb:hover {
-    background: #666;
+    font-size: var(--font-size-sm);
   }
 }
 </style>

@@ -12,7 +12,7 @@
           class="cyber-input"
           :class="{ error: errors.username }"
           @blur="validateField('username')"
-          placeholder="ENTER_USERNAME"
+          placeholder="Username"
           maxlength="50"
         />
         <span v-if="errors.username" class="field-error">{{ errors.username }}</span>
@@ -25,7 +25,7 @@
           v-model="localData.hostname"
           type="text"
           class="cyber-input"
-          placeholder="SYSTEM_HOSTNAME"
+          placeholder="Hostname"
           maxlength="50"
         />
       </div>
@@ -58,7 +58,7 @@
         <textarea
           v-model="localData.status"
           class="cyber-textarea"
-          placeholder="What's on your mind?"
+          placeholder="Your status message"
           rows="3"
           maxlength="200"
         />
@@ -148,19 +148,19 @@ defineExpose({
 .settings-tab {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--spacing-5);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  gap: var(--spacing-5);
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-2);
 }
 
 .field-full-width {
@@ -171,97 +171,97 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 1px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--letter-spacing-normal);
 }
 
 .label-required {
-  color: var(--neon-red);
+  color: var(--color-error);
 }
 
 .label-hint-inline {
-  color: var(--text-muted);
-  font-size: 9px;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-xs);
 }
 
 .cyber-input {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--border-dim);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  letter-spacing: var(--letter-spacing-normal);
+  transition: all var(--transition-fast);
   outline: none;
 }
 
 .cyber-input:hover {
-  border-color: var(--border-bright);
+  border-color: var(--color-border-strong);
 }
 
 .cyber-input:focus {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 10px rgba(0, 243, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
 
 .cyber-input.error {
-  border-color: var(--neon-red);
-  box-shadow: 0 0 15px rgba(255, 51, 102, 0.3);
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px var(--color-error-light);
 }
 
 .cyber-textarea {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid var(--border-dim);
-  border-radius: 4px;
-  color: var(--text-primary);
-  font-family: 'Courier New', monospace;
-  font-size: 12px;
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  letter-spacing: var(--letter-spacing-normal);
+  transition: all var(--transition-fast);
   outline: none;
   resize: vertical;
   min-height: 80px;
 }
 
 .cyber-textarea:hover {
-  border-color: var(--border-bright);
+  border-color: var(--color-border-strong);
 }
 
 .cyber-textarea:focus {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 10px rgba(0, 243, 255, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
 
 .field-error {
-  font-size: 10px;
-  color: var(--neon-red);
-  letter-spacing: 1px;
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+  letter-spacing: var(--letter-spacing-normal);
 }
 
 .avatar-display {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-dim);
-  border-radius: 8px;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   width: fit-content;
 }
 
 .avatar-display:hover {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .avatar-emoji {
@@ -269,10 +269,10 @@ defineExpose({
 }
 
 .avatar-hint {
-  font-size: 10px;
-  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-fast);
 }
 
 .avatar-display:hover .avatar-hint {

@@ -47,22 +47,14 @@ onMounted(async () => {
 
 <style scoped>
 .user-profile-header {
-  --neon-cyan: #00f3ff;
-  --neon-magenta: #ff00ff;
-  --bg-dark: #0a0a12;
-  --bg-panel: rgba(18, 18, 26, 0.95);
-  --border-dim: #2a2a3a;
-  --text-primary: #e0e0ff;
-  --text-secondary: #8888aa;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
-  background: rgba(0, 0, 0, 0.4);
-  border-bottom: 1px solid var(--border-dim);
+  padding: var(--spacing-3) var(--spacing-5);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-subtle);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   position: relative;
 }
 
@@ -73,51 +65,54 @@ onMounted(async () => {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
-  opacity: 0.5;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transition: transform var(--transition-normal);
+}
+
+.user-profile-header:hover::before {
+  transform: scaleX(1);
 }
 
 .user-profile-header:hover {
-  background: rgba(0, 243, 255, 0.05);
-  border-bottom-color: var(--neon-cyan);
+  background: var(--color-primary-subtle);
 }
 
 .user-profile-header:hover .user-name {
-  color: var(--neon-cyan);
-  text-shadow: 0 0 10px var(--neon-cyan);
+  color: var(--color-primary);
 }
 
 .user-profile-header:hover .indicator-arrow {
   transform: translateX(4px);
-  color: var(--neon-cyan);
+  color: var(--color-primary);
 }
 
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-3);
 }
 
 .user-avatar {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, rgba(0, 243, 255, 0.1), rgba(255, 0, 255, 0.1));
-  border: 1px solid var(--border-dim);
-  border-radius: 8px;
+  background: var(--gradient-primary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-sm);
 }
 
 .user-profile-header:hover .user-avatar {
-  border-color: var(--neon-cyan);
-  box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: var(--shadow-primary);
 }
 
 .avatar-icon {
   font-size: 20px;
-  opacity: 0.8;
 }
 
 .user-details {
@@ -127,17 +122,17 @@ onMounted(async () => {
 }
 
 .user-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 1px;
-  transition: all 0.3s ease;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  letter-spacing: var(--letter-spacing-normal);
+  transition: color var(--transition-fast);
 }
 
 .user-host {
-  font-size: 11px;
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-family: var(--font-mono);
 }
 
 .header-indicator {
@@ -147,13 +142,13 @@ onMounted(async () => {
 
 .indicator-arrow {
   font-size: 20px;
-  color: var(--text-secondary);
-  transition: all 0.3s ease;
+  color: var(--color-text-tertiary);
+  transition: all var(--transition-normal);
 }
 
 @media (max-width: 768px) {
   .user-profile-header {
-    padding: 10px 16px;
+    padding: var(--spacing-2) var(--spacing-4);
   }
 
   .user-avatar {

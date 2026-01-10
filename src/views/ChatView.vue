@@ -56,39 +56,40 @@ onMounted(async () => {
 .wechat-chat {
   display: flex;
   height: 100vh;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
   overflow: hidden;
 }
 
 .chat-sidebar {
-  width: 280px;
-  background: #fff;
-  border-right: 1px solid #e7e7e7;
+  width: var(--sidebar-width);
+  background: var(--color-bg-secondary);
+  border-right: 1px solid var(--color-border-subtle);
   flex-shrink: 0;
+  transition: transform var(--transition-normal);
 }
 
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
+  background: var(--color-bg-primary);
   position: relative;
   overflow: hidden;
 }
 
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  .wechat-chat {
-    background: #1a1a1a;
-  }
-
+/* Responsive */
+@media (max-width: 768px) {
   .chat-sidebar {
-    background: #2a2a2a;
-    border-right-color: #3a3a3a;
+    position: fixed;
+    left: 0;
+    top: var(--header-height);
+    height: calc(100vh - var(--header-height));
+    z-index: var(--z-fixed);
+    transform: translateX(-100%);
   }
 
-  .chat-main {
-    background: #1a1a1a;
+  .chat-sidebar.open {
+    transform: translateX(0);
   }
 }
 </style>

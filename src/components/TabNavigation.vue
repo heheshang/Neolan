@@ -134,12 +134,8 @@ defineExpose({
 
 <style scoped>
 .tab-navigation {
-  --neon-cyan: #00f3ff;
-  --border-dim: #2a2a3a;
-  --bg-dark: #0a0a12;
-
-  background: rgba(0, 0, 0, 0.4);
-  border-bottom: 1px solid var(--border-dim);
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-border-subtle);
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
@@ -147,40 +143,40 @@ defineExpose({
 
 .tab-list {
   display: flex;
-  gap: 4px;
-  padding: 12px 16px;
+  gap: var(--spacing-1);
+  padding: var(--spacing-3) var(--spacing-4);
   min-width: min-content;
 }
 
 .tab-button {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--text-secondary);
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 1px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-normal);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   white-space: nowrap;
   position: relative;
 }
 
 .tab-button:hover {
-  background: rgba(0, 243, 255, 0.05);
-  border-color: rgba(0, 243, 255, 0.2);
-  color: var(--text-primary);
+  background: var(--color-primary-subtle);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
 }
 
 .tab-button.active {
-  background: rgba(0, 243, 255, 0.1);
-  border-color: var(--neon-cyan);
-  color: var(--neon-cyan);
+  background: var(--color-primary-subtle);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .tab-button.active::after {
@@ -190,18 +186,19 @@ defineExpose({
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--neon-cyan);
-  box-shadow: 0 0 10px var(--neon-cyan);
+  background: var(--gradient-primary);
+  box-shadow: var(--shadow-primary);
 }
 
 .tab-button.focused {
-  outline: 2px solid var(--neon-cyan);
+  outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
 
 .tab-icon {
   font-size: 14px;
-  opacity: 0.8;
+  opacity: 0.7;
+  transition: opacity var(--transition-fast);
 }
 
 .tab-button.active .tab-icon {
@@ -209,7 +206,7 @@ defineExpose({
 }
 
 .tab-label {
-  text-transform: uppercase;
+  text-transform: capitalize;
 }
 
 /* Scrollbar Styling */
@@ -222,25 +219,26 @@ defineExpose({
 }
 
 .tab-navigation::-webkit-scrollbar-thumb {
-  background: var(--border-dim);
+  background: var(--color-border);
   border-radius: 2px;
+  transition: background var(--transition-fast);
 }
 
 .tab-navigation::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: var(--color-border-strong);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .tab-list {
-    padding: 10px 12px;
-    gap: 2px;
+    padding: var(--spacing-2) var(--spacing-3);
+    gap: var(--spacing-0);
   }
 
   .tab-button {
-    padding: 8px 12px;
-    font-size: 10px;
-    gap: 6px;
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-xs);
+    gap: var(--spacing-1);
   }
 
   .tab-icon {
