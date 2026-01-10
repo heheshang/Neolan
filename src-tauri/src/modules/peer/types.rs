@@ -85,7 +85,7 @@ impl PeerNode {
             .as_ref()
             .or(self.username.as_ref())
             .or(self.hostname.as_ref())
-            .map(|s| s.clone())
+            .cloned()
             .unwrap_or_else(|| self.ip.to_string())
     }
 
@@ -172,7 +172,8 @@ impl PeerInfo {
         Self { ip, port, username }
     }
 
-    /// Create from PeerNode
+    /// Create from PeerNode (kept for test purposes)
+    #[allow(dead_code)]
     pub fn from_node(node: &PeerNode) -> Self {
         Self {
             ip: node.ip,
@@ -181,7 +182,8 @@ impl PeerInfo {
         }
     }
 
-    /// Get socket address
+    /// Get socket address (kept for future use)
+    #[allow(dead_code)]
     pub fn socket_addr(&self) -> std::net::SocketAddr {
         std::net::SocketAddr::new(self.ip, self.port)
     }
@@ -189,6 +191,7 @@ impl PeerInfo {
 
 /// Peer event (for state change notifications)
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub enum PeerEvent {
     /// Peer came online
     Online(PeerInfo),

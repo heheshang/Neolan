@@ -49,7 +49,8 @@ pub struct PeerDto {
 }
 
 impl PeerDto {
-    /// Create a new PeerDto
+    /// Create a new PeerDto (kept for test purposes and future use)
+    #[allow(dead_code)]
     pub fn new(
         ip: String,
         port: u16,
@@ -76,7 +77,8 @@ impl PeerDto {
         }
     }
 
-    /// Create from IP address and port (minimal info)
+    /// Create from IP address and port (minimal info) (kept for test purposes)
+    #[allow(dead_code)]
     pub fn from_addr(ip: IpAddr, port: u16) -> Self {
         let display_name = ip.to_string();
         let last_seen = system_time_to_millis(SystemTime::now());

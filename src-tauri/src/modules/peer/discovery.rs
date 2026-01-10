@@ -74,13 +74,16 @@ impl PeerDiscovery {
     /// Other peers running NeoLan will receive this and add this peer to their list.
     ///
     /// # Returns
-    /// * `Ok(())` - Announcement sent successfully
+    /// * `Ok(())` - Announcement sent successfully (or gracefully skipped on macOS)
     /// * `Err(NeoLanError)` - Send failed
     pub fn announce_online(&self) -> Result<()> {
         tracing::info!("Announcing online status to LAN");
 
         // Enable broadcast if not already enabled
-        self.udp.set_broadcast_enabled(true)?;
+        if let Err(e) = self.udp.set_broadcast_enabled(true) {
+            tracing::warn!("Failed to enable broadcast: {:?}, continuing anyway", e);
+            // On macOS, this can fail due to interface issues - continue anyway
+        }
 
         // Create BR_ENTRY message (broadcast online)
         let msg = ProtocolMessage {
@@ -94,9 +97,25 @@ impl PeerDiscovery {
 
         // Serialize and send
         let bytes = serialize_message(&msg)?;
-        self.udp.broadcast(&bytes)?;
 
-        tracing::debug!("Online announcement sent: {}@{}", self.username, self.hostname);
+        // Try to broadcast, but handle macOS broadcast issues gracefully
+        match self.udp.broadcast(&bytes) {
+            Ok(()) => {
+                tracing::debug!("Online announcement sent: {}@{}", self.username, self.hostname);
+            }
+            Err(e) => {
+                // On macOS, broadcast can fail with EADDRNOTAVAIL (error 49) due to
+                // virtual interfaces (VPN, Docker, etc.). We continue anyway since:
+                // 1. We can still receive peer announcements
+                // 2. Other peers will discover us when they broadcast
+                tracing::warn!(
+                    "Failed to send broadcast announcement (this is normal on macOS with VPNs/Docker): {:?}. \
+                     Continuing - peer discovery will work when other peers announce.",
+                    e
+                );
+            }
+        }
+
         Ok(())
     }
 

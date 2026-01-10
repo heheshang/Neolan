@@ -5,7 +5,11 @@
 use crate::config::AppConfig;
 use crate::modules::message::MessageHandler;
 use crate::modules::peer::{PeerManager, PeerNode};
+use crate::storage::database::establish_connection;
+use crate::storage::message_repo::MessageRepository;
+use crate::storage::peer_repo::PeerRepository;
 use crate::Result;
+use sea_orm::DatabaseConnection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc;
@@ -148,6 +152,15 @@ impl PeerDiscoveredDto {
 /// It is wrapped in Arc<Mutex<>> to allow thread-safe access across commands.
 #[derive(Clone)]
 pub struct AppState {
+    /// Database connection
+    db: Arc<Mutex<Option<DatabaseConnection>>>,
+
+    /// Message repository
+    message_repo: Arc<Mutex<Option<MessageRepository>>>,
+
+    /// Peer repository
+    peer_repo: Arc<Mutex<Option<PeerRepository>>>,
+
     /// Peer manager (when initialized)
     peer_manager: Arc<Mutex<Option<PeerManager>>>,
 
@@ -168,12 +181,62 @@ impl AppState {
     /// Create a new application state
     pub fn new(config: AppConfig) -> Self {
         Self {
+            db: Arc::new(Mutex::new(None)),
+            message_repo: Arc::new(Mutex::new(None)),
+            peer_repo: Arc::new(Mutex::new(None)),
             peer_manager: Arc::new(Mutex::new(None)),
             message_handler: Arc::new(Mutex::new(None)),
             config: Arc::new(Mutex::new(config)),
             event_emitter: Arc::new(Mutex::new(super::events::AppEventEmitter::new())),
             tauri_event_sender: Arc::new(Mutex::new(None)),
         }
+    }
+
+    // ==================== Database Methods ====================
+
+    /// Initialize the database connection
+    ///
+    /// This should be called once during application startup.
+    /// Returns the database connection for use with migrations.
+    pub async fn init_database(&self) -> Result<DatabaseConnection> {
+        tracing::info!("Initializing database connection...");
+
+        let db = establish_connection()
+            .await
+            .map_err(|e| crate::NeoLanError::Storage(format!("Database connection failed: {}", e)))?;
+
+        // Store the database connection
+        *self.db.lock().unwrap() = Some(db.clone());
+
+        // Create repositories
+        let message_repo = MessageRepository::new(db.clone());
+        let peer_repo = PeerRepository::new(db.clone());
+
+        *self.message_repo.lock().unwrap() = Some(message_repo);
+        *self.peer_repo.lock().unwrap() = Some(peer_repo);
+
+        tracing::info!("Database initialized successfully");
+
+        Ok(db)
+    }
+
+    /// Get the message repository
+    ///
+    /// Returns None if database hasn't been initialized.
+    pub fn get_message_repo(&self) -> Option<MessageRepository> {
+        self.message_repo.lock().unwrap().as_ref().cloned()
+    }
+
+    /// Get the peer repository
+    ///
+    /// Returns None if database hasn't been initialized.
+    pub fn get_peer_repo(&self) -> Option<PeerRepository> {
+        self.peer_repo.lock().unwrap().as_ref().cloned()
+    }
+
+    /// Check if database is initialized
+    pub fn is_database_initialized(&self) -> bool {
+        self.db.lock().unwrap().is_some()
     }
 
     /// Set the Tauri event sender

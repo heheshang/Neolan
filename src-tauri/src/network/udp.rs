@@ -69,6 +69,39 @@ impl UdpTransport {
         })
     }
 
+    /// Bind to a specific port with retry logic
+    ///
+    /// # Arguments
+    /// * `port` - UDP port to bind to (use 0 for OS-assigned port)
+    /// * `max_retries` - Maximum number of retries with different ports
+    ///
+    /// # Returns
+    /// * `Ok(UdpTransport)` - Successfully bound transport
+    /// * `Err(NeoLanError)` - Binding failed after all retries
+    pub fn bind_with_retry(port: u16, max_retries: u16) -> Result<Self> {
+        let start_port = if port == 0 { DEFAULT_UDP_PORT } else { port };
+        let end_port = start_port + max_retries;
+
+        for attempt_port in start_port..end_port {
+            match Self::bind(attempt_port) {
+                Ok(transport) => {
+                    tracing::info!("UDP socket bound to port {} (attempt {})", transport.port, attempt_port - start_port + 1);
+                    return Ok(transport);
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to bind to port {}: {}, retrying...", attempt_port, e);
+                    if attempt_port == end_port - 1 {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        Err(NeoLanError::Network(std::io::Error::new(
+            std::io::ErrorKind::AddrNotAvailable,
+            format!("Failed to bind UDP socket after {} attempts", max_retries),
+        )))
+    }
+
     /// Enable or disable broadcast mode
     ///
     /// # Arguments

@@ -3,6 +3,7 @@ use sea_orm_migration::prelude::*;
 use sea_orm_migration::schema::*;
 
 #[derive(DeriveMigrationName)]
+#[allow(dead_code)]
 pub struct Migration;
 
 #[async_trait::async_trait]
@@ -303,6 +304,7 @@ impl MigrationTrait for Migration {
 
 // 表和字段枚举定义
 #[derive(DeriveIden)]
+#[allow(dead_code)]
 enum Peers {
     Table,
     Id,
@@ -319,6 +321,7 @@ enum Peers {
 }
 
 #[derive(DeriveIden)]
+#[allow(dead_code)]
 enum Messages {
     Table,
     Id,
@@ -336,6 +339,7 @@ enum Messages {
 }
 
 #[derive(DeriveIden)]
+#[allow(dead_code)]
 enum Transfers {
     Table,
     Id,
@@ -354,6 +358,7 @@ enum Transfers {
 }
 
 #[derive(DeriveIden)]
+#[allow(dead_code)]
 enum Groups {
     Table,
     Id,
@@ -365,6 +370,7 @@ enum Groups {
 }
 
 #[derive(DeriveIden)]
+#[allow(dead_code)]
 enum Settings {
     Table,
     Key,
@@ -373,6 +379,7 @@ enum Settings {
 }
 
 #[derive(DeriveIden)]
+#[allow(dead_code)]
 enum AuditLogs {
     Table,
     Id,

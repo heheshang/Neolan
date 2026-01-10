@@ -30,8 +30,7 @@ tokio = { version = "1", features = ["full"] }
 
 # 错误处理
 thiserror = "1"
-anyhow = "1"
-
+ 
 # 工具库
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }

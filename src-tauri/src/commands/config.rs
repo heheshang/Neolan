@@ -51,7 +51,8 @@ pub struct ConfigDto {
 }
 
 impl ConfigDto {
-    /// Create a new ConfigDto with default values
+    /// Create a new ConfigDto with default values (kept for test purposes and future use)
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self::default()
     }
@@ -98,10 +99,11 @@ impl ConfigDto {
         }
     }
 
-    /// Create from HashMap (for flexible configuration)
+    /// Create from HashMap (for flexible configuration) (kept for test purposes)
+    #[allow(dead_code)]
     pub fn from_map(map: &HashMap<String, String>) -> Self {
         Self {
-            username: map.get("username").cloned().unwrap_or_else(|| whoami::username()),
+            username: map.get("username").cloned().unwrap_or_else(whoami::username),
             hostname: map
                 .get("hostname")
                 .cloned()

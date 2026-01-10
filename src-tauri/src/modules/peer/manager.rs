@@ -9,15 +9,33 @@
 use crate::{network::ProtocolMessage, Result};
 use crate::modules::peer::{types::*, discovery::PeerDiscovery};
 use std::collections::HashMap;
-use std::io::{self, Error as IoError, ErrorKind};
+use std::io::{self, Error as IoError};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Mutex, PoisonError};
 use tracing::{info, warn, debug, error};
 use std::sync::mpsc::Sender;
 
-/// Convert lock poison error to io error
+/// Safe mutex lock helper - prevents panics on mutex poisoning
+///
+/// When a mutex is poisoned (previous holder panicked), we still allow access
+/// to the data. This is safe because the poison flag is just a warning - the
+/// mutex guard still provides exclusive access to the data.
+macro_rules! safe_lock {
+    ($mutex:expr) => {
+        match $mutex.lock() {
+            Ok(guard) => guard,
+            Err(e) => {
+                warn!("Mutex poisoned, recovering: {}", e);
+                // PoisonError contains the guard, we can still use it
+                e.into_inner()
+            }
+        }
+    };
+}
+
+/// Convert lock poison error to io error (kept for compatibility)
 fn lock_error<T>(_: PoisonError<T>) -> io::Error {
-    IoError::new(ErrorKind::Other, "Mutex lock poisoned")
+    IoError::other("Mutex lock poisoned")
 }
 
 /// Message routing request
@@ -73,7 +91,7 @@ impl PeerManager {
     /// # Arguments
     /// * `tx` - Channel sender for message routing
     pub fn set_message_handler_channel(&self, tx: Sender<MessageRouteRequest>) {
-        *self.message_tx.lock().unwrap() = Some(tx);
+        *safe_lock!(self.message_tx) = Some(tx);
         info!("Message handler channel set in PeerManager");
     }
 
@@ -175,7 +193,7 @@ impl PeerManager {
             crate::network::msg_type::IPMSG_SENDMSG => {
                 info!("💌 [TEXT MESSAGE] Routing text message to MessageHandler: from={}, content={}",
                     msg.sender_name, msg.content.chars().take(100).collect::<String>());
-                if let Some(ref tx) = *message_tx.lock().unwrap() {
+                if let Some(ref tx) = *safe_lock!(message_tx) {
                     let route_req = MessageRouteRequest {
                         message: msg,
                         sender,
@@ -193,7 +211,7 @@ impl PeerManager {
             crate::network::msg_type::IPMSG_RECVMSG => {
                 info!("✅ [RECEIPT ACK] Routing message acknowledgment to MessageHandler: from={}, packet_id={}",
                     msg.sender_name, msg.packet_id);
-                if let Some(ref tx) = *message_tx.lock().unwrap() {
+                if let Some(ref tx) = *safe_lock!(message_tx) {
                     let route_req = MessageRouteRequest {
                         message: msg,
                         sender,

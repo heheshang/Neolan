@@ -74,10 +74,27 @@ pub async fn establish_connection() -> Result<DatabaseConnection, String> {
 
     let db_path = db_dir.join("neolan.db");
 
-    // 3. 建立数据库连接
-    // SQLite 连接字符串格式: sqlite://path
-    let database_url = format!("sqlite://{}", db_path.display());
+    // 预先创建数据库文件（如果不存在）
+    // 这有助于诊断权限问题
+    if !db_path.exists() {
+        tracing::info!("Creating database file: {}", db_path.display());
+        if let Err(e) = std::fs::File::create(&db_path) {
+            return Err(format!("Failed to create database file: {}", e));
+        }
+    } else {
+        tracing::info!("Database file already exists: {}", db_path.display());
+    }
 
+    // 3. 建立数据库连接
+    // SeaORM sqlx SQLite URL 格式:
+    // - 绝对路径: sqlite:///absolute/path (三个斜杠)
+    // - 只编码空格，不编码斜杠
+    let db_path_str = db_path.to_string_lossy();
+
+    // 构建 URL: 三个斜杠表示绝对路径
+    let database_url = format!("sqlite://{}", db_path_str.replace(' ', "%20"));
+
+    tracing::info!("Database path: {}", db_path_str);
     tracing::info!("Connecting to database: {}", database_url);
 
     let db = Database::connect(&database_url)

@@ -47,33 +47,6 @@ impl From<messages::Model> for MessageDto {
     }
 }
 
-/// Event payload for message-received event
-#[derive(Clone, serde::Serialize)]
-pub struct MessageReceivedEvent {
-    pub id: i32,  // Database ID (0 for real-time messages not yet saved)
-    #[serde(rename = "msgId")]
-    pub msg_id: String,
-    #[serde(rename = "senderIp")]
-    pub sender_ip: String,
-    #[serde(rename = "senderName")]
-    pub sender_name: String,
-    #[serde(rename = "receiverIp")]
-    pub receiver_ip: String,
-    pub content: String,
-    #[serde(rename = "msgType")]
-    pub msg_type: i32,
-    #[serde(rename = "isEncrypted")]
-    pub is_encrypted: bool,
-    #[serde(rename = "isOffline")]
-    pub is_offline: bool,
-    #[serde(rename = "sentAt")]
-    pub sent_at: i64,
-    #[serde(rename = "receivedAt")]
-    pub received_at: Option<i64>,
-    #[serde(rename = "createdAt")]
-    pub created_at: i64,
-}
-
 /// Event payload for message-sent event
 #[derive(Clone, serde::Serialize)]
 pub struct MessageSentEvent {

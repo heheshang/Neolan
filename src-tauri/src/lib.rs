@@ -11,6 +11,7 @@ mod error;
 
 // Import Emitter trait for event emission
 use tauri::Emitter;
+use crate::migration::{Migrator, MigratorTrait};
 use crate::network::UdpTransport;
 use crate::modules::peer::{PeerManager, discovery::PeerDiscovery};
 use crate::modules::message::handler::MessageHandler;
@@ -115,6 +116,29 @@ pub fn run() {
                 tracing::info!("Event listener task ended");
             });
 
+            // Initialize database and repositories
+            tracing::info!("Initializing database...");
+            let app_state_for_db = app_state_for_setup.clone();
+            let db = match tauri::async_runtime::block_on(async move {
+                app_state_for_db.init_database().await
+            }) {
+                Ok(db) => db,
+                Err(e) => {
+                    tracing::error!("Failed to initialize database: {:?}", e);
+                    return Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>);
+                }
+            };
+
+            // Run migrations
+            tracing::info!("Running database migrations...");
+            if let Err(e) = tauri::async_runtime::block_on(async {
+                Migrator::up(&db, None).await
+            }) {
+                tracing::error!("Database migration failed: {:?}", e);
+                return Err(Box::new(e) as Box<dyn std::error::Error + Send + Sync>);
+            }
+            tracing::info!("Database migrations completed");
+
             // Initialize PeerManager
             tracing::info!("Initializing PeerManager...");
 
@@ -122,14 +146,11 @@ pub fn run() {
             let config = app_state_for_setup.get_config();
             let udp_port = config.udp_port;
 
-            // Bind UDP transport for receiving (PeerManager)
-            let udp_recv = match UdpTransport::bind(udp_port) {
-                Ok(u) => {
-                    tracing::info!("UDP transport bound to port {}", udp_port);
-                    u
-                }
+            // Bind UDP transport for receiving (PeerManager) with retry
+            let udp_recv = match UdpTransport::bind_with_retry(udp_port, 10) {
+                Ok(u) => u,
                 Err(e) => {
-                    tracing::error!("Failed to bind UDP transport: {}", e);
+                    tracing::error!("Failed to bind UDP transport after retries: {}", e);
                     return Err(Box::new(e));
                 }
             };
